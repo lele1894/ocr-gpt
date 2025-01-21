@@ -41,7 +41,7 @@ class TextRecognizer:
         url = f"https://aip.baidubce.com/oauth/2.0/token?grant_type=client_credentials&client_id={self.API_KEY}&client_secret={self.SECRET_KEY}"
         response = requests.get(url)
         return response.json().get("access_token")
-    
+        
     def create_main_window(self):
         """创建主窗口"""
         self.main_window = ctk.CTk()
@@ -200,6 +200,9 @@ class TextRecognizer:
                 self.GPT_API_URL = gpt_url.get()
                 self.GPT_API_KEY = gpt_key.get()
                 
+                # 获取当前窗口的置顶状态
+                current_topmost = self.main_window.attributes('-topmost')
+                
                 config = {
                     'baidu_ocr': {
                         'api_key': self.API_KEY,
@@ -210,7 +213,7 @@ class TextRecognizer:
                         'api_key': self.GPT_API_KEY
                     },
                     'window': {
-                        'topmost': top_var.get()  # 保存置顶设置
+                        'topmost': current_topmost
                     }
                 }
                 
