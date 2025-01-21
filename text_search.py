@@ -214,13 +214,31 @@ class TextRecognizer:
                     }
                 }
                 
-                if self.config_manager.save_config(config):
+                # 确保配置目录存在
+                config_dir = os.path.dirname(self.config_manager.config_file)
+                if not os.path.exists(config_dir):
+                    os.makedirs(config_dir, exist_ok=True)
+                
+                # 尝试保存配置
+                try:
+                    with open(self.config_manager.config_file, 'w', encoding='utf-8') as f:
+                        json.dump(config, f, indent=4, ensure_ascii=False)
                     settings.destroy()
                     self.show_message("设置已保存")
-                else:
-                    self.show_message("保存失败")
+                    return True
+                except Exception as e:
+                    # 如果保存失败，尝试使用备用位置
+                    backup_path = os.path.join(os.path.expanduser('~'), 'OCR-GPT', 'config.json')
+                    os.makedirs(os.path.dirname(backup_path), exist_ok=True)
+                    with open(backup_path, 'w', encoding='utf-8') as f:
+                        json.dump(config, f, indent=4, ensure_ascii=False)
+                    self.config_manager.config_file = backup_path
+                    settings.destroy()
+                    self.show_message(f"设置已保存到备用位置：\n{backup_path}")
+                    return True
             except Exception as e:
-                self.show_message(f"保存出错: {str(e)}")
+                self.show_message(f"保存设置失败：\n{str(e)}")
+                return False
         
         save_btn = ctk.CTkButton(settings, text="保存", command=save_settings)
         save_btn.pack(pady=10)
@@ -234,17 +252,32 @@ class TextRecognizer:
     def show_message(self, message):
         """显示消息提示"""
         msg = ctk.CTkToplevel(self.main_window)
-        msg.geometry("300x100")
+        msg.geometry("300x150")
         msg.title("提示")
+        msg.attributes('-topmost', True)  # 确保消息窗口在最顶层
+        msg.focus_force()  # 强制获取焦点
         
-        ctk.CTkLabel(msg, text=message).pack(expand=True)
+        # 创建一个框架来容纳消息和按钮
+        frame = ctk.CTkFrame(msg)
+        frame.pack(expand=True, fill="both", padx=20, pady=20)
         
+        # 显示消息
+        label = ctk.CTkLabel(frame, text=message, wraplength=250)
+        label.pack(pady=(0, 20))
+        
+        # 添加确认按钮
+        ok_button = ctk.CTkButton(frame, text="确定", command=msg.destroy, width=100)
+        ok_button.pack()
+        
+        # 使窗口居中
         msg.update_idletasks()
         x = self.main_window.winfo_x() + (self.main_window.winfo_width() - msg.winfo_width()) // 2
         y = self.main_window.winfo_y() + (self.main_window.winfo_height() - msg.winfo_height()) // 2
         msg.geometry(f"+{x}+{y}")
         
-        msg.after(2000, msg.destroy)
+        # 确保窗口模态
+        msg.grab_set()
+        msg.wait_window()
     
     def on_ask(self):
         """处理提问"""
