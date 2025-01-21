@@ -20,12 +20,31 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install pyinstaller
+        # 只安装必要的依赖
+        pip install PyQt5==5.15.9
+        pip install requests==2.31.0
+        pip install pyautogui==0.9.54
+        pip install keyboard==0.13.5
+        pip install Pillow==10.0.0
+        pip install pyinstaller==6.4.0
     
     - name: Build EXE
       run: |
-        pyinstaller --noconfirm --onefile --windowed --icon=ai.png --add-data "ai.png;." --add-data "config_manager.py;." text_search.py
+        pyinstaller --noconfirm --onefile --windowed --noupx ^
+          --exclude-module matplotlib ^
+          --exclude-module numpy ^
+          --exclude-module pandas ^
+          --exclude-module scipy ^
+          --exclude-module tkinter ^
+          --exclude-module PyQt5.QtNetwork ^
+          --exclude-module PyQt5.QtQml ^
+          --exclude-module PyQt5.QtWebEngine ^
+          --exclude-module PyQt5.QtWebEngineCore ^
+          --exclude-module PyQt5.QtWebEngineWidgets ^
+          --icon=ai.png ^
+          --add-data "ai.png;." ^
+          --add-data "config_manager.py;." ^
+          text_search.py
     
     - name: Create Release and Upload Asset
       uses: softprops/action-gh-release@v1
