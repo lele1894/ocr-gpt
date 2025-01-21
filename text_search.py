@@ -139,6 +139,9 @@ class TextRecognizer:
         settings.title("设置")
         settings.geometry("400x500")
         settings.grab_set()
+        # 设置窗口置顶
+        settings.attributes('-topmost', True)
+        settings.focus_force()  # 强制获取焦点
         
         # 帮助文本
         help_text = ctk.CTkTextbox(settings, height=150)

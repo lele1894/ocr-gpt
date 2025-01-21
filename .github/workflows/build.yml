@@ -46,10 +46,20 @@ jobs:
         # 注册清理函数
         atexit.register(cleanup)
 
-        # 确保配置文件目录存在
+        # 确保配置文件目录存在并设置正确的权限
         if getattr(sys, "frozen", False):
-            app_dir = os.path.dirname(sys.executable)
-            os.makedirs(app_dir, exist_ok=True)
+            try:
+                # 尝试在程序目录保存
+                app_dir = os.path.dirname(sys.executable)
+                os.makedirs(app_dir, exist_ok=True)
+            except Exception:
+                # 如果程序目录无法写入，使用用户目录
+                app_dir = os.path.expanduser("~")
+                config_dir = os.path.join(app_dir, "OCR-GPT")
+                os.makedirs(config_dir, exist_ok=True)
+                # 修改 sys 路径，确保配置管理器能找到正确的目录
+                if config_dir not in sys.path:
+                    sys.path.insert(0, config_dir)
         '@
         
         if (-not (Test-Path "hooks")) {
