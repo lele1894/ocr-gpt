@@ -28,6 +28,28 @@ jobs:
         pip install Pillow==10.0.0
         pip install pyinstaller==6.4.0
     
+    - name: Create hooks directory
+      run: |
+        mkdir hooks
+        echo 'import os
+        import sys
+        import atexit
+        
+        def cleanup():
+            """清理函数"""
+            if hasattr(os, "killpg"):
+                os.killpg(os.getpgid(0), 9)
+            else:
+                os._exit(0)
+        
+        # 注册清理函数
+        atexit.register(cleanup)
+        
+        # 确保配置文件目录存在
+        if getattr(sys, "frozen", False):
+            app_dir = os.path.dirname(sys.executable)
+            os.makedirs(app_dir, exist_ok=True)' > hooks/rthook.py
+    
     - name: Build EXE
       shell: powershell
       run: |
@@ -41,6 +63,7 @@ jobs:
           --icon=ai.png `
           --add-data "ai.png;." `
           --add-data "config_manager.py;." `
+          --add-data "hooks/rthook.py;hooks" `
           --name "OCR-GPT" `
           text_search.py
     
