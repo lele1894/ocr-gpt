@@ -30,20 +30,20 @@ jobs:
     
     - name: Build EXE
       run: |
-        pyinstaller --noconfirm --onefile --windowed --noupx ^
-          --exclude-module matplotlib ^
-          --exclude-module numpy ^
-          --exclude-module pandas ^
-          --exclude-module scipy ^
-          --exclude-module tkinter ^
-          --exclude-module PyQt5.QtNetwork ^
-          --exclude-module PyQt5.QtQml ^
-          --exclude-module PyQt5.QtWebEngine ^
-          --exclude-module PyQt5.QtWebEngineCore ^
-          --exclude-module PyQt5.QtWebEngineWidgets ^
-          --icon=ai.png ^
-          --add-data "ai.png;." ^
-          --add-data "config_manager.py;." ^
+        pyinstaller --noconfirm --onefile --windowed --noupx `
+          --exclude-module matplotlib `
+          --exclude-module numpy `
+          --exclude-module pandas `
+          --exclude-module scipy `
+          --exclude-module tkinter `
+          --exclude-module PyQt5.QtNetwork `
+          --exclude-module PyQt5.QtQml `
+          --exclude-module PyQt5.QtWebEngine `
+          --exclude-module PyQt5.QtWebEngineCore `
+          --exclude-module PyQt5.QtWebEngineWidgets `
+          --icon=ai.png `
+          --add-data "ai.png;." `
+          --add-data "config_manager.py;." `
           text_search.py
     
     - name: Create Release and Upload Asset
