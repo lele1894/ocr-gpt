@@ -11,18 +11,8 @@ class ConfigManager:
         
         # 获取配置文件的正确路径
         if getattr(sys, 'frozen', False):
-            # 如果是打包后的 exe
-            try:
-                # 首先尝试程序目录
-                application_path = os.path.dirname(sys.executable)
-                test_path = os.path.join(application_path, 'test_write')
-                with open(test_path, 'w') as f:
-                    f.write('test')
-                os.remove(test_path)
-            except Exception:
-                # 如果无法写入，使用用户目录
-                application_path = os.path.join(os.path.expanduser('~'), 'OCR-GPT')
-                os.makedirs(application_path, exist_ok=True)
+            # 如果是打包后的 exe，直接使用 exe 所在目录
+            application_path = os.path.dirname(sys.executable)
         else:
             # 如果是直接运行 py 文件
             application_path = os.path.dirname(os.path.abspath(__file__))
