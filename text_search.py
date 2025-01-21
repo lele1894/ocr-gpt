@@ -1,19 +1,17 @@
 import customtkinter as ctk
 import pyautogui
-import webbrowser
 from PIL import Image, ImageTk
 import sys
 import io
 import base64
 import requests
 import keyboard
-import time
 import json
-import threading
 import os
 from config_manager import ConfigManager
 import tkinter.ttk as ttk
 from tkinter import ttk
+import threading  # 重新添加 threading
 
 class TextRecognizer:
     def __init__(self):
@@ -50,6 +48,10 @@ class TextRecognizer:
         self.main_window.title("OCR-GPT")
         self.main_window.geometry("600x400")
         
+        # 从配置中读取置顶状态
+        is_topmost = self.config_manager.config['window']['topmost']
+        self.main_window.attributes('-topmost', is_topmost)
+        
         # 设置图标
         if getattr(sys, 'frozen', False):
             application_path = sys._MEIPASS
@@ -76,21 +78,28 @@ class TextRecognizer:
         button_frame.pack(fill="x", padx=10, pady=5)
         
         # 左侧按钮
-        left_buttons = ctk.CTkFrame(button_frame, fg_color="transparent")
-        left_buttons.pack(side="left")
+        self.left_buttons = ctk.CTkFrame(button_frame, fg_color="transparent")
+        self.left_buttons.pack(side="left")
         
-        ask_button = ctk.CTkButton(left_buttons, text="点击提问", command=self.on_ask,
+        ask_button = ctk.CTkButton(self.left_buttons, text="点击提问", command=self.on_ask,
                                   width=100, height=32)
         ask_button.pack(side="left", padx=5)
         
-        clear_button = ctk.CTkButton(left_buttons, text="清空回答", 
+        clear_button = ctk.CTkButton(self.left_buttons, text="清空回答", 
                                     command=lambda: self.answer_text.delete("1.0", "end"),
                                     width=100, height=32)
         clear_button.pack(side="left", padx=5)
         
-        settings_button = ctk.CTkButton(left_buttons, text="设置", command=self.show_settings,
+        settings_button = ctk.CTkButton(self.left_buttons, text="设置", command=self.show_settings,
                                       width=100, height=32)
         settings_button.pack(side="left", padx=5)
+        
+        # 添加置顶选项到按钮区域，使用配置中的状态
+        top_var = ctk.BooleanVar(value=is_topmost)
+        top_checkbox = ctk.CTkCheckBox(self.left_buttons, text="置顶",
+                                      variable=top_var,
+                                      command=lambda: self.main_window.attributes('-topmost', top_var.get()))
+        top_checkbox.pack(side="left", padx=10)
         
         # 创建回答区域
         answer_label = ctk.CTkLabel(self.main_window, text="AI回答:", anchor="w")
@@ -130,16 +139,6 @@ class TextRecognizer:
         settings.title("设置")
         settings.geometry("400x500")
         settings.grab_set()
-        
-        # 添加置顶选项
-        top_frame = ctk.CTkFrame(settings)
-        top_frame.pack(fill="x", padx=10, pady=5)
-        
-        top_var = ctk.BooleanVar(value=self.main_window.attributes('-topmost'))
-        top_checkbox = ctk.CTkCheckBox(top_frame, text="窗口始终置顶",
-                                      variable=top_var,
-                                      command=lambda: self.main_window.attributes('-topmost', top_var.get()))
-        top_checkbox.pack(pady=5)
         
         # 帮助文本
         help_text = ctk.CTkTextbox(settings, height=150)
@@ -246,6 +245,12 @@ class TextRecognizer:
     
     def on_ask(self):
         """处理提问"""
+        # 禁用按钮，显示加载状态
+        for widget in self.left_buttons.winfo_children():
+            if isinstance(widget, ctk.CTkButton):
+                widget.configure(state="disabled")
+        
+        # 使用线程处理请求
         thread = threading.Thread(target=self._do_api_request)
         thread.daemon = True
         thread.start()
@@ -284,6 +289,7 @@ class TextRecognizer:
                 if 'choices' in result and len(result['choices']) > 0:
                     answer = result['choices'][0]['message']['content']
                     if answer:
+                        # 使用 after 在主线程中更新 UI
                         self.main_window.after(0, self._update_answer, answer)
                         return
             
@@ -291,11 +297,20 @@ class TextRecognizer:
             
         except Exception as e:
             self.main_window.after(0, self.show_message, f"请求错误: {str(e)}")
+        finally:
+            # 使用 after 在主线程中恢复按钮状态
+            self.main_window.after(0, self._reset_buttons)
     
     def _update_answer(self, answer):
         """更新答案"""
         self.answer_text.delete("1.0", "end")
         self.answer_text.insert("1.0", answer)
+    
+    def _reset_buttons(self):
+        """恢复按钮状态"""
+        for widget in self.left_buttons.winfo_children():
+            if isinstance(widget, ctk.CTkButton):
+                widget.configure(state="normal")
     
     def start_capture(self):
         """开始截图"""
@@ -304,13 +319,33 @@ class TextRecognizer:
             self.capture_window.attributes('-alpha', 0.3, '-fullscreen', True, '-topmost', True)
             self.capture_window.configure(fg_color="black")
             
+            # 创建画布用于显示选择框
+            self.canvas = ctk.CTkCanvas(self.capture_window, highlightthickness=0)
+            self.canvas.pack(fill="both", expand=True)
+            
             def on_press(event):
                 self.capture_start = (event.x, event.y)
                 self.is_capturing = True
+                # 清除之前的选择框
+                self.canvas.delete("selection")
             
             def on_move(event):
                 if self.is_capturing:
-                    self.capture_window.update()
+                    # 清除之前的选择框
+                    self.canvas.delete("selection")
+                    # 绘制新的选择框
+                    x1, y1 = self.capture_start
+                    x2, y2 = event.x, event.y
+                    # 绘制半透明遮罩
+                    self.canvas.create_rectangle(
+                        0, 0, self.capture_window.winfo_width(), self.capture_window.winfo_height(),
+                        fill="black", stipple="gray50", tags="selection"
+                    )
+                    # 绘制选择框（清除遮罩）
+                    self.canvas.create_rectangle(
+                        min(x1, x2), min(y1, y2), max(x1, x2), max(y1, y2),
+                        outline="red", width=2, fill="", tags="selection"
+                    )
             
             def on_release(event):
                 if self.is_capturing:
@@ -320,12 +355,14 @@ class TextRecognizer:
                     self.capture_window.withdraw()
                     self.capture_and_recognize(x1, y1, x2, y2)
             
-            self.capture_window.bind("<Button-1>", on_press)
-            self.capture_window.bind("<B1-Motion>", on_move)
-            self.capture_window.bind("<ButtonRelease-1>", on_release)
-            self.capture_window.bind("<Escape>", lambda e: self.capture_window.withdraw())
+            self.canvas.bind("<Button-1>", on_press)
+            self.canvas.bind("<B1-Motion>", on_move)
+            self.canvas.bind("<ButtonRelease-1>", on_release)
+            self.canvas.bind("<Escape>", lambda e: self.capture_window.withdraw())
         
         self.capture_window.deiconify()
+        # 确保画布大小正确
+        self.canvas.update()
     
     def capture_and_recognize(self, x1, y1, x2, y2):
         """处理文字识别"""
