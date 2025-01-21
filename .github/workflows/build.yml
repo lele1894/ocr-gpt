@@ -28,27 +28,34 @@ jobs:
         pip install Pillow==10.0.0
         pip install pyinstaller==6.4.0
     
-    - name: Create hooks directory
+    - name: Create runtime hook
+      shell: powershell
       run: |
-        mkdir hooks
-        echo 'import os
+        $hookContent = @'
+        import os
         import sys
         import atexit
-        
+
         def cleanup():
             """清理函数"""
             if hasattr(os, "killpg"):
                 os.killpg(os.getpgid(0), 9)
             else:
                 os._exit(0)
-        
+
         # 注册清理函数
         atexit.register(cleanup)
-        
+
         # 确保配置文件目录存在
         if getattr(sys, "frozen", False):
             app_dir = os.path.dirname(sys.executable)
-            os.makedirs(app_dir, exist_ok=True)' > hooks/rthook.py
+            os.makedirs(app_dir, exist_ok=True)
+        '@
+        
+        if (-not (Test-Path "hooks")) {
+            New-Item -ItemType Directory -Path "hooks"
+        }
+        $hookContent | Out-File -FilePath "hooks/rthook.py" -Encoding utf8
     
     - name: Build EXE
       shell: powershell
