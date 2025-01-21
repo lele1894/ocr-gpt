@@ -29,6 +29,7 @@ jobs:
         pip install pyinstaller==6.4.0
     
     - name: Build EXE
+      shell: powershell
       run: |
         pyinstaller --noconfirm --onefile --windowed --noupx `
           --exclude-module matplotlib `
