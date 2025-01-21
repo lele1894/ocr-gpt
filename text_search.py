@@ -642,32 +642,35 @@ class TextRecognizer(QMainWindow):
         """)
         
         def save_settings():
-            # 保存设置
-            self.API_KEY = ocr_key_input.text()
-            self.SECRET_KEY = ocr_secret_input.text()
-            # 更新 access_token
-            self.access_token = self.get_access_token()
-            
-            # 保存 GPT 设置
-            self.GPT_API_URL = gpt_api_input.text()
-            self.GPT_API_KEY = gpt_key_input.text()
-            
-            # 保存到配置文件
-            config = {
-                'baidu_ocr': {
-                    'api_key': self.API_KEY,
-                    'secret_key': self.SECRET_KEY
-                },
-                'gpt': {
-                    'api_url': self.GPT_API_URL,
-                    'api_key': self.GPT_API_KEY
+            try:
+                # 保存设置
+                self.API_KEY = ocr_key_input.text()
+                self.SECRET_KEY = ocr_secret_input.text()
+                # 更新 access_token
+                self.access_token = self.get_access_token() if self.API_KEY and self.SECRET_KEY else None
+                
+                # 保存 GPT 设置
+                self.GPT_API_URL = gpt_api_input.text()
+                self.GPT_API_KEY = gpt_key_input.text()
+                
+                # 保存到配置文件
+                config = {
+                    'baidu_ocr': {
+                        'api_key': self.API_KEY,
+                        'secret_key': self.SECRET_KEY
+                    },
+                    'gpt': {
+                        'api_url': self.GPT_API_URL,
+                        'api_key': self.GPT_API_KEY
+                    }
                 }
-            }
-            if self.config_manager.save_config(config):
-                settings_window.close()
-                self.show_error("设置已保存", self.result_window.x(), self.result_window.y())
-            else:
-                self.show_error("设置保存失败", self.result_window.x(), self.result_window.y())
+                if self.config_manager.save_config(config):
+                    settings_window.close()
+                    self.show_error("设置已保存", self.result_window.x(), self.result_window.y())
+                else:
+                    self.show_error("设置保存失败", self.result_window.x(), self.result_window.y())
+            except Exception as e:
+                self.show_error(f"保存设置时出错: {str(e)}", self.result_window.x(), self.result_window.y())
         
         save_button.clicked.connect(save_settings)
         layout.addWidget(save_button, alignment=Qt.AlignCenter)
