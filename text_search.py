@@ -224,68 +224,46 @@ class TextRecognizer:
                 # 保存设置前先验证 API 是否可用
                 new_api_key = ocr_key.get()
                 new_secret_key = ocr_secret.get()
-                
-                if new_api_key and new_secret_key:
-                    # 临时保存旧值
-                    old_api_key = self.API_KEY
-                    old_secret_key = self.SECRET_KEY
-                    
-                    # 尝试使用新值获取 token
-                    self.API_KEY = new_api_key
-                    self.SECRET_KEY = new_secret_key
-                    new_token = self.get_access_token()
-                    
-                    if new_token is None:
-                        # 如果获取失败，恢复旧值
-                        self.API_KEY = old_api_key
-                        self.SECRET_KEY = old_secret_key
-                        return False
-                    
-                    self.access_token = new_token
-                
-                # 保存 GPT 设置
-                self.GPT_API_URL = gpt_url.get()
-                self.GPT_API_KEY = gpt_key.get()
+                new_gpt_url = gpt_url.get()
+                new_gpt_key = gpt_key.get()
                 
                 # 获取当前窗口的置顶状态
                 current_topmost = self.main_window.attributes('-topmost')
                 
+                # 准备新的配置
                 config = {
                     'baidu_ocr': {
-                        'api_key': self.API_KEY,
-                        'secret_key': self.SECRET_KEY
+                        'api_key': new_api_key,
+                        'secret_key': new_secret_key
                     },
                     'gpt': {
-                        'api_url': self.GPT_API_URL,
-                        'api_key': self.GPT_API_KEY
+                        'api_url': new_gpt_url,
+                        'api_key': new_gpt_key
                     },
                     'window': {
                         'topmost': current_topmost
                     }
                 }
                 
-                # 确保配置目录存在
-                config_dir = os.path.dirname(self.config_manager.config_file)
-                if not os.path.exists(config_dir):
-                    os.makedirs(config_dir, exist_ok=True)
-                
-                # 尝试保存配置
-                try:
-                    with open(self.config_manager.config_file, 'w', encoding='utf-8') as f:
-                        json.dump(config, f, indent=4, ensure_ascii=False)
+                # 先保存配置
+                if self.config_manager.save_config(config):
+                    # 保存成功后再更新内存中的值
+                    self.API_KEY = new_api_key
+                    self.SECRET_KEY = new_secret_key
+                    self.GPT_API_URL = new_gpt_url
+                    self.GPT_API_KEY = new_gpt_key
+                    
+                    # 如果有百度 API，尝试获取 token
+                    if new_api_key and new_secret_key:
+                        self.access_token = self.get_access_token()
+                    
                     settings.destroy()
                     self.show_message("设置已保存")
                     return True
-                except Exception as e:
-                    # 如果保存失败，尝试使用备用位置
-                    backup_path = os.path.join(os.path.expanduser('~'), 'OCR-GPT', 'config.json')
-                    os.makedirs(os.path.dirname(backup_path), exist_ok=True)
-                    with open(backup_path, 'w', encoding='utf-8') as f:
-                        json.dump(config, f, indent=4, ensure_ascii=False)
-                    self.config_manager.config_file = backup_path
-                    settings.destroy()
-                    self.show_message(f"设置已保存到备用位置：\n{backup_path}")
-                    return True
+                else:
+                    self.show_message("保存设置失败")
+                    return False
+                
             except Exception as e:
                 self.show_message(f"保存设置失败：\n{str(e)}")
                 return False
