@@ -160,22 +160,25 @@ class TextRecognizer:
         # 如果已有设置窗口，先关闭它
         if self.settings_window is not None:
             try:
-                self.settings_window.destroy()
+                if self.settings_window.winfo_exists():
+                    self.settings_window.destroy()
             except:
                 pass
+            self.settings_window = None
         
-        self.settings_window = ctk.CTkToplevel(self.main_window)
-        settings = self.settings_window
-        settings.title("设置")
-        settings.geometry("400x500")
-        settings.grab_set()
-        settings.attributes('-topmost', True)
-        settings.focus_force()
-        
-        # 帮助文本
-        help_text = ctk.CTkTextbox(settings, height=150)
-        help_text.pack(fill="x", padx=10, pady=5)
-        help_text.insert("1.0", """
+        try:
+            self.settings_window = ctk.CTkToplevel(self.main_window)
+            settings = self.settings_window
+            settings.title("设置")
+            settings.geometry("400x500")
+            settings.grab_set()
+            settings.attributes('-topmost', True)
+            settings.focus_force()
+            
+            # 帮助文本
+            help_text = ctk.CTkTextbox(settings, height=150)
+            help_text.pack(fill="x", padx=10, pady=5)
+            help_text.insert("1.0", """
 获取API密钥说明：(alt+1截图快捷键)
 
 1. 百度OCR配置：(不用截图识别文本,可以不用配置)
@@ -188,94 +191,113 @@ class TextRecognizer:
    • 访问API服务：https://free.v36.cm
    • 注册账号获取API Key
    • 默认API地址：https://free.v36.cm/v1/chat/completions
-        """)
-        help_text.configure(state="disabled")
-        
-        # OCR设置
-        ocr_frame = ctk.CTkFrame(settings)
-        ocr_frame.pack(fill="x", padx=10, pady=5)
-        
-        ctk.CTkLabel(ocr_frame, text="百度OCR设置").pack(pady=5)
-        
-        ocr_key = ctk.CTkEntry(ocr_frame, placeholder_text="API Key")
-        ocr_key.pack(fill="x", padx=10, pady=5)
-        ocr_key.insert(0, self.API_KEY)
-        
-        ocr_secret = ctk.CTkEntry(ocr_frame, placeholder_text="Secret Key", show="*")
-        ocr_secret.pack(fill="x", padx=10, pady=5)
-        ocr_secret.insert(0, self.SECRET_KEY)
-        
-        # GPT设置
-        gpt_frame = ctk.CTkFrame(settings)
-        gpt_frame.pack(fill="x", padx=10, pady=5)
-        
-        ctk.CTkLabel(gpt_frame, text="GPT设置").pack(pady=5)
-        
-        gpt_url = ctk.CTkEntry(gpt_frame, placeholder_text="API URL")
-        gpt_url.pack(fill="x", padx=10, pady=5)
-        gpt_url.insert(0, self.GPT_API_URL)
-        
-        gpt_key = ctk.CTkEntry(gpt_frame, placeholder_text="API Key", show="*")
-        gpt_key.pack(fill="x", padx=10, pady=5)
-        gpt_key.insert(0, self.GPT_API_KEY)
-        
-        def save_settings():
-            try:
-                # 保存设置前先验证 API 是否可用
-                new_api_key = ocr_key.get()
-                new_secret_key = ocr_secret.get()
-                new_gpt_url = gpt_url.get()
-                new_gpt_key = gpt_key.get()
-                
-                # 获取当前窗口的置顶状态
-                current_topmost = self.main_window.attributes('-topmost')
-                
-                # 准备新的配置
-                config = {
-                    'baidu_ocr': {
-                        'api_key': new_api_key,
-                        'secret_key': new_secret_key
-                    },
-                    'gpt': {
-                        'api_url': new_gpt_url,
-                        'api_key': new_gpt_key
-                    },
-                    'window': {
-                        'topmost': current_topmost
+            """)
+            help_text.configure(state="disabled")
+            
+            # OCR设置
+            ocr_frame = ctk.CTkFrame(settings)
+            ocr_frame.pack(fill="x", padx=10, pady=5)
+            
+            ctk.CTkLabel(ocr_frame, text="百度OCR设置").pack(pady=5)
+            
+            ocr_key = ctk.CTkEntry(ocr_frame, placeholder_text="API Key")
+            ocr_key.pack(fill="x", padx=10, pady=5)
+            ocr_key.insert(0, self.API_KEY)
+            
+            ocr_secret = ctk.CTkEntry(ocr_frame, placeholder_text="Secret Key", show="*")
+            ocr_secret.pack(fill="x", padx=10, pady=5)
+            ocr_secret.insert(0, self.SECRET_KEY)
+            
+            # GPT设置
+            gpt_frame = ctk.CTkFrame(settings)
+            gpt_frame.pack(fill="x", padx=10, pady=5)
+            
+            ctk.CTkLabel(gpt_frame, text="GPT设置").pack(pady=5)
+            
+            gpt_url = ctk.CTkEntry(gpt_frame, placeholder_text="API URL")
+            gpt_url.pack(fill="x", padx=10, pady=5)
+            gpt_url.insert(0, self.GPT_API_URL)
+            
+            gpt_key = ctk.CTkEntry(gpt_frame, placeholder_text="API Key", show="*")
+            gpt_key.pack(fill="x", padx=10, pady=5)
+            gpt_key.insert(0, self.GPT_API_KEY)
+            
+            def save_settings():
+                try:
+                    # 保存设置前先验证 API 是否可用
+                    new_api_key = ocr_key.get()
+                    new_secret_key = ocr_secret.get()
+                    new_gpt_url = gpt_url.get()
+                    new_gpt_key = gpt_key.get()
+                    
+                    # 获取当前窗口的置顶状态
+                    current_topmost = self.main_window.attributes('-topmost')
+                    
+                    # 准备新的配置
+                    config = {
+                        'baidu_ocr': {
+                            'api_key': new_api_key,
+                            'secret_key': new_secret_key
+                        },
+                        'gpt': {
+                            'api_url': new_gpt_url,
+                            'api_key': new_gpt_key
+                        },
+                        'window': {
+                            'topmost': current_topmost
+                        }
                     }
-                }
-                
-                # 先保存配置
-                if self.config_manager.save_config(config):
-                    # 保存成功后再更新内存中的值
-                    self.API_KEY = new_api_key
-                    self.SECRET_KEY = new_secret_key
-                    self.GPT_API_URL = new_gpt_url
-                    self.GPT_API_KEY = new_gpt_key
                     
-                    # 如果有百度 API，尝试获取 token
-                    if new_api_key and new_secret_key:
-                        self.access_token = self.get_access_token()
+                    # 先保存配置
+                    if self.config_manager.save_config(config):
+                        # 保存成功后再更新内存中的值
+                        self.API_KEY = new_api_key
+                        self.SECRET_KEY = new_secret_key
+                        self.GPT_API_URL = new_gpt_url
+                        self.GPT_API_KEY = new_gpt_key
+                        
+                        # 如果有百度 API，尝试获取 token
+                        if new_api_key and new_secret_key:
+                            self.access_token = self.get_access_token()
+                        
+                        if self.settings_window and self.settings_window.winfo_exists():
+                            self.settings_window.destroy()
+                            self.settings_window = None
+                        self.show_message("设置已保存")
+                        return True
+                    else:
+                        self.show_message("保存设置失败")
+                        return False
                     
-                    settings.destroy()
-                    self.show_message("设置已保存")
-                    return True
-                else:
-                    self.show_message("保存设置失败")
+                except Exception as e:
+                    self.show_message(f"保存设置失败：\n{str(e)}")
                     return False
-                
-            except Exception as e:
-                self.show_message(f"保存设置失败：\n{str(e)}")
-                return False
-        
-        save_btn = ctk.CTkButton(settings, text="保存", command=save_settings)
-        save_btn.pack(pady=10)
-        
-        # 使窗口居中
-        settings.update_idletasks()
-        x = self.main_window.winfo_x() + (self.main_window.winfo_width() - settings.winfo_width()) // 2
-        y = self.main_window.winfo_y() + (self.main_window.winfo_height() - settings.winfo_height()) // 2
-        settings.geometry(f"+{x}+{y}")
+            
+            save_btn = ctk.CTkButton(settings, text="保存", command=save_settings)
+            save_btn.pack(pady=10)
+            
+            # 使窗口居中
+            settings.update_idletasks()
+            x = self.main_window.winfo_x() + (self.main_window.winfo_width() - settings.winfo_width()) // 2
+            y = self.main_window.winfo_y() + (self.main_window.winfo_height() - settings.winfo_height()) // 2
+            settings.geometry(f"+{x}+{y}")
+            
+            # 处理窗口关闭
+            def on_closing():
+                if self.settings_window and self.settings_window.winfo_exists():
+                    self.settings_window.destroy()
+                self.settings_window = None
+            
+            settings.protocol("WM_DELETE_WINDOW", on_closing)
+            
+        except Exception as e:
+            self.show_message(f"打开设置窗口失败：\n{str(e)}")
+            if self.settings_window:
+                try:
+                    self.settings_window.destroy()
+                except:
+                    pass
+                self.settings_window = None
     
     def show_message(self, message):
         """显示消息提示"""
@@ -295,8 +317,10 @@ class TextRecognizer:
             
             def close_message():
                 try:
-                    msg.destroy()
-                    self.message_windows.remove(msg)
+                    if msg.winfo_exists():
+                        msg.destroy()
+                    if msg in self.message_windows:
+                        self.message_windows.remove(msg)
                 except:
                     pass
             
@@ -307,6 +331,9 @@ class TextRecognizer:
             x = self.main_window.winfo_x() + (self.main_window.winfo_width() - msg.winfo_width()) // 2
             y = self.main_window.winfo_y() + (self.main_window.winfo_height() - msg.winfo_height()) // 2
             msg.geometry(f"+{x}+{y}")
+            
+            # 处理窗口关闭
+            msg.protocol("WM_DELETE_WINDOW", close_message)
             
             msg.grab_set()
             msg.wait_window()
@@ -489,10 +516,15 @@ class TextRecognizer:
             # 取消所有快捷键
             keyboard.unhook_all()
             
+            # 取消所有定时任务
+            if self.main_window and self.main_window.winfo_exists():
+                for after_id in self.main_window.tk.call('after', 'info'):
+                    self.main_window.after_cancel(after_id)
+            
             # 关闭所有消息窗口
             for window in self.message_windows[:]:
                 try:
-                    if window.winfo_exists():
+                    if window and window.winfo_exists():
                         window.destroy()
                 except:
                     pass
@@ -505,6 +537,7 @@ class TextRecognizer:
                         self.settings_window.destroy()
                 except:
                     pass
+                self.settings_window = None
             
             # 关闭截图窗口
             if self.capture_window is not None:
@@ -513,6 +546,7 @@ class TextRecognizer:
                         self.capture_window.destroy()
                 except:
                     pass
+                self.capture_window = None
             
             # 关闭主窗口
             if self.main_window is not None:
@@ -522,6 +556,7 @@ class TextRecognizer:
                         self.main_window.destroy()
                 except:
                     pass
+                self.main_window = None
         except:
             pass
         finally:
@@ -544,7 +579,8 @@ def main():
         except:
             pass
     
-    app.main_window.after(100, check_hotkey)
+    if app.main_window and app.main_window.winfo_exists():
+        app.main_window.after(100, check_hotkey)
     
     try:
         app.main_window.mainloop()
