@@ -13,6 +13,7 @@ import time
 import json
 import threading
 from config_manager import ConfigManager
+import os
 
 # 添加一个信号类
 class SignalBridge(QObject):
@@ -48,6 +49,17 @@ class TextRecognizer(QMainWindow):
         self.signal_bridge.answer_signal.connect(self._update_answer)
         self.signal_bridge.error_signal.connect(lambda msg: self.show_error(msg, self.result_window.x(), self.result_window.y()))
         self.signal_bridge.reset_button_signal.connect(self._reset_button)
+        
+        # 获取图标文件的路径
+        if getattr(sys, 'frozen', False):
+            # 如果是打包后的 exe
+            application_path = sys._MEIPASS
+        else:
+            # 如果是直接运行 py 文件
+            application_path = os.path.dirname(os.path.abspath(__file__))
+        
+        icon_path = os.path.join(application_path, 'ai.png')
+        self.app_icon = QIcon(icon_path)
         
         # 创建并显示主窗口
         self.create_result_window()
@@ -110,7 +122,7 @@ class TextRecognizer(QMainWindow):
         self.result_window.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
         
         # 设置软件图标
-        self.result_window.setWindowIcon(QIcon('ai.png'))
+        self.result_window.setWindowIcon(self.app_icon)
         
         # 创建中央部件和布局
         central_widget = QWidget()
