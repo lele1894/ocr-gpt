@@ -20,8 +20,8 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        # 只安装必要的依赖
-        pip install PyQt5==5.15.9
+        # 使用更轻量的 GUI 库
+        pip install customtkinter==5.2.2
         pip install requests==2.31.0
         pip install pyautogui==0.9.54
         pip install keyboard==0.13.5
@@ -35,12 +35,7 @@ jobs:
           --exclude-module numpy `
           --exclude-module pandas `
           --exclude-module scipy `
-          --exclude-module tkinter `
-          --exclude-module PyQt5.QtNetwork `
-          --exclude-module PyQt5.QtQml `
-          --exclude-module PyQt5.QtWebEngine `
-          --exclude-module PyQt5.QtWebEngineCore `
-          --exclude-module PyQt5.QtWebEngineWidgets `
+          --exclude-module PyQt5 `
           --runtime-hook "hooks/rthook.py" `
           --icon=ai.png `
           --add-data "ai.png;." `
