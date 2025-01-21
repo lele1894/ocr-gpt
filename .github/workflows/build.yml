@@ -38,31 +38,85 @@ jobs:
         import os
         import sys
         import atexit
+        import ctypes
+        from ctypes import wintypes
 
         def cleanup():
             """清理函数"""
-            if hasattr(os, "killpg"):
-                os.killpg(os.getpgid(0), 9)
-            else:
-                os._exit(0)
+            os._exit(0)
 
         # 注册清理函数
         atexit.register(cleanup)
 
-        # 确保配置文件目录存在并设置正确的权限
-        if getattr(sys, "frozen", False):
-            try:
-                # 尝试在程序目录保存
-                app_dir = os.path.dirname(sys.executable)
-                os.makedirs(app_dir, exist_ok=True)
-            except Exception:
-                # 如果程序目录无法写入，使用用户目录
-                app_dir = os.path.expanduser("~")
-                config_dir = os.path.join(app_dir, "OCR-GPT")
-                os.makedirs(config_dir, exist_ok=True)
-                # 修改 sys 路径，确保配置管理器能找到正确的目录
-                if config_dir not in sys.path:
-                    sys.path.insert(0, config_dir)
+        # Windows API 常量
+        CSIDL_COMMON_APPDATA = 35
+        SHGFP_TYPE_CURRENT = 0
+        MAX_PATH = 260
+
+        # 获取程序数据目录
+        def get_program_files():
+            if getattr(sys, "frozen", False):
+                # 如果是打包后的 exe
+                try:
+                    # 直接使用 exe 所在目录
+                    exe_dir = os.path.dirname(sys.executable)
+                    config_dir = os.path.join(exe_dir)
+                    
+                    # 测试目录是否可写
+                    test_file = os.path.join(config_dir, "test_write")
+                    try:
+                        with open(test_file, "w") as f:
+                            f.write("test")
+                        os.remove(test_file)
+                        return config_dir
+                    except:
+                        pass
+                    
+                    # 如果不可写，尝试使用 ProgramData 目录
+                    buf = ctypes.create_unicode_buffer(MAX_PATH)
+                    ctypes.windll.shell32.SHGetFolderPathW(
+                        None, CSIDL_COMMON_APPDATA, None, SHGFP_TYPE_CURRENT, buf
+                    )
+                    program_data = buf.value
+                    config_dir = os.path.join(program_data, "OCR-GPT")
+                    
+                    # 创建配置目录
+                    os.makedirs(config_dir, exist_ok=True)
+                    return config_dir
+                except:
+                    # 如果都失败了，使用用户目录
+                    user_dir = os.path.expanduser("~")
+                    config_dir = os.path.join(user_dir, "OCR-GPT")
+                    os.makedirs(config_dir, exist_ok=True)
+                    return config_dir
+            else:
+                # 如果是直接运行 py 文件
+                return os.path.dirname(os.path.abspath(__file__))
+
+        # 设置配置目录
+        config_dir = get_program_files()
+        if config_dir not in sys.path:
+            sys.path.insert(0, config_dir)
+
+        # 确保配置文件存在
+        config_file = os.path.join(config_dir, "config.json")
+        if not os.path.exists(config_file):
+            import json
+            default_config = {
+                "baidu_ocr": {
+                    "api_key": "",
+                    "secret_key": ""
+                },
+                "gpt": {
+                    "api_url": "https://free.v36.cm/v1/chat/completions",
+                    "api_key": ""
+                },
+                "window": {
+                    "topmost": True
+                }
+            }
+            with open(config_file, "w", encoding="utf-8") as f:
+                json.dump(default_config, f, indent=4, ensure_ascii=False)
         '@
         
         if (-not (Test-Path "hooks")) {
