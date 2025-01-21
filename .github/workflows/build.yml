@@ -1,9 +1,12 @@
 name: Build EXE
 
 on:
-  push:
-    tags:
-      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag_version:
+        description: 'Tag version (e.g., v1.0.0)'
+        required: true
+        type: string
 
 jobs:
   build:
@@ -84,10 +87,18 @@ jobs:
           --name "OCR-GPT" `
           text_search.py
     
+    - name: Create Tag
+      run: |
+        git tag ${{ github.event.inputs.tag_version }}
+        git push origin ${{ github.event.inputs.tag_version }}
+    
     - name: Create Release and Upload Asset
       uses: softprops/action-gh-release@v1
       with:
         files: ./dist/OCR-GPT.exe
-        name: Release ${{ github.ref }}
+        tag_name: ${{ github.event.inputs.tag_version }}
+        name: Release ${{ github.event.inputs.tag_version }}
+        draft: false
+        prerelease: false
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
