@@ -41,15 +41,17 @@ jobs:
           --exclude-module PyQt5.QtWebEngine `
           --exclude-module PyQt5.QtWebEngineCore `
           --exclude-module PyQt5.QtWebEngineWidgets `
+          --runtime-hook "hooks/rthook.py" `
           --icon=ai.png `
           --add-data "ai.png;." `
           --add-data "config_manager.py;." `
+          --name "OCR-GPT" `
           text_search.py
     
     - name: Create Release and Upload Asset
       uses: softprops/action-gh-release@v1
       with:
-        files: ./dist/text_search.exe
+        files: ./dist/OCR-GPT.exe
         name: Release ${{ github.ref }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 

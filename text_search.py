@@ -128,7 +128,7 @@ class TextRecognizer(QMainWindow):
         central_widget = QWidget()
         layout = QVBoxLayout(central_widget)
         
-        # 添加标题栏
+        # 修改标题栏部分
         title_bar = QWidget()
         title_bar.setStyleSheet("""
             QWidget {
@@ -140,13 +140,14 @@ class TextRecognizer(QMainWindow):
         title_layout = QHBoxLayout(title_bar)
         title_layout.setContentsMargins(10, 5, 10, 5)
         
-        title_label = QLabel("文本识别结果")
+        # 修改标题文本
+        title_label = QLabel("OCR-GPT")
         title_label.setStyleSheet("font-weight: bold;")
         title_layout.addWidget(title_label)
         title_layout.addStretch()
         
         # 在标题栏添加设置按钮
-        settings_button = QPushButton("⚙")  # 使用齿轮符号
+        settings_button = QPushButton("⚙")
         settings_button.setFixedSize(20, 20)
         settings_button.setStyleSheet("""
             QPushButton {
@@ -162,7 +163,7 @@ class TextRecognizer(QMainWindow):
         settings_button.clicked.connect(self.show_settings)
         title_layout.addWidget(settings_button)
         
-        # 添加最小化和关闭按钮
+        # 添加最小化按钮
         min_button = QPushButton("—")
         min_button.setFixedSize(20, 20)
         min_button.setStyleSheet("""
@@ -177,6 +178,24 @@ class TextRecognizer(QMainWindow):
         """)
         min_button.clicked.connect(self.result_window.showMinimized)
         title_layout.addWidget(min_button)
+        
+        # 添加关闭按钮
+        close_button = QPushButton("×")
+        close_button.setFixedSize(20, 20)
+        close_button.setStyleSheet("""
+            QPushButton {
+                background-color: transparent;
+                border: none;
+                color: #666;
+                font-size: 16px;
+            }
+            QPushButton:hover {
+                background-color: #ff4444;
+                color: white;
+            }
+        """)
+        close_button.clicked.connect(self.quit_application)
+        title_layout.addWidget(close_button)
         
         layout.addWidget(title_bar)
         
@@ -687,20 +706,40 @@ class TextRecognizer(QMainWindow):
         
         settings_window.show()
 
+    def quit_application(self):
+        """完全退出应用程序"""
+        # 停止定时器
+        for timer in self.findChildren(QTimer):
+            timer.stop()
+        
+        # 关闭所有窗口
+        if self.capture_window:
+            self.capture_window.close()
+        if self.result_window:
+            self.result_window.close()
+        
+        # 取消注册快捷键
+        keyboard.unhook_all()
+        
+        # 退出应用程序
+        QApplication.quit()
+
 def main():
     app = QApplication(sys.argv)
-    recognizer = TextRecognizer()  # 创建主窗口
+    recognizer = TextRecognizer()
     
     def check_hotkey():
         if keyboard.is_pressed('alt+1'):
-            recognizer.start_capture()  # 显示截图窗口
+            recognizer.start_capture()
     
     # 创建定时器检查快捷键
     timer = QTimer()
     timer.timeout.connect(check_hotkey)
     timer.start(100)
     
-    app.setQuitOnLastWindowClosed(False)
+    # 设置应用程序属性
+    app.setQuitOnLastWindowClosed(True)
+    
     sys.exit(app.exec_())
 
 if __name__ == '__main__':
