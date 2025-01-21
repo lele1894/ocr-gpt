@@ -75,15 +75,26 @@ class TextRecognizer:
         self.main_window.attributes('-topmost', is_topmost)
         
         # 设置图标
-        if getattr(sys, 'frozen', False):
-            application_path = sys._MEIPASS
-        else:
-            application_path = os.path.dirname(os.path.abspath(__file__))
-        icon_path = os.path.join(application_path, 'ai.png')
-        if os.path.exists(icon_path):
-            icon = Image.open(icon_path)
-            photo = ImageTk.PhotoImage(icon)
-            self.main_window.wm_iconphoto(True, photo)
+        try:
+            if getattr(sys, 'frozen', False):
+                # 如果是打包后的 exe
+                application_path = sys._MEIPASS
+            else:
+                # 如果是直接运行 py 文件
+                application_path = os.path.dirname(os.path.abspath(__file__))
+            
+            icon_path = os.path.join(application_path, 'ai.png')
+            if os.path.exists(icon_path):
+                # 使用 PhotoImage 而不是 wm_iconphoto
+                icon = Image.open(icon_path)
+                # 确保图标大小合适
+                icon = icon.resize((32, 32), Image.Resampling.LANCZOS)
+                photo = ImageTk.PhotoImage(icon)
+                self.main_window.iconphoto(False, photo)
+                # 保持对图标的引用以防止被垃圾回收
+                self._icon_image = photo
+        except Exception as e:
+            print(f"加载图标失败: {str(e)}")
         
         # 创建文本区域
         text_label = ctk.CTkLabel(self.main_window, text="识别文本:", anchor="w")
