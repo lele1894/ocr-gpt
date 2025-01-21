@@ -11,7 +11,12 @@ import os
 from config_manager import ConfigManager
 import tkinter.ttk as ttk
 from tkinter import ttk
-import threading  # 重新添加 threading
+import threading
+import urllib3
+import warnings
+
+# 禁用 SSL 警告
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 class TextRecognizer:
     def __init__(self):
@@ -19,6 +24,8 @@ class TextRecognizer:
         self.is_capturing = False
         self.capture_window = None
         self.main_window = None
+        self.settings_window = None
+        self.message_windows = []
         
         # 加载配置
         self.config_manager = ConfigManager()
@@ -38,9 +45,24 @@ class TextRecognizer:
         self.create_main_window()
         
     def get_access_token(self):
-        url = f"https://aip.baidubce.com/oauth/2.0/token?grant_type=client_credentials&client_id={self.API_KEY}&client_secret={self.SECRET_KEY}"
-        response = requests.get(url)
-        return response.json().get("access_token")
+        """获取百度 API access token"""
+        try:
+            url = f"https://aip.baidubce.com/oauth/2.0/token?grant_type=client_credentials&client_id={self.API_KEY}&client_secret={self.SECRET_KEY}"
+            response = requests.get(url, verify=False, timeout=10)  # 禁用 SSL 验证
+            if response.status_code == 200:
+                return response.json().get("access_token")
+            else:
+                self.show_message(f"获取 access_token 失败: {response.text}")
+                return None
+        except requests.exceptions.SSLError as e:
+            self.show_message("SSL 证书验证失败，已禁用证书验证")
+            return None
+        except requests.exceptions.RequestException as e:
+            self.show_message(f"网络请求错误: {str(e)}")
+            return None
+        except Exception as e:
+            self.show_message(f"获取 access_token 时发生错误: {str(e)}")
+            return None
         
     def create_main_window(self):
         """创建主窗口"""
@@ -135,13 +157,20 @@ class TextRecognizer:
     
     def show_settings(self):
         """显示设置窗口"""
-        settings = ctk.CTkToplevel(self.main_window)
+        # 如果已有设置窗口，先关闭它
+        if self.settings_window is not None:
+            try:
+                self.settings_window.destroy()
+            except:
+                pass
+        
+        self.settings_window = ctk.CTkToplevel(self.main_window)
+        settings = self.settings_window
         settings.title("设置")
         settings.geometry("400x500")
         settings.grab_set()
-        # 设置窗口置顶
         settings.attributes('-topmost', True)
-        settings.focus_force()  # 强制获取焦点
+        settings.focus_force()
         
         # 帮助文本
         help_text = ctk.CTkTextbox(settings, height=150)
@@ -192,11 +221,29 @@ class TextRecognizer:
         
         def save_settings():
             try:
-                # 保存设置
-                self.API_KEY = ocr_key.get()
-                self.SECRET_KEY = ocr_secret.get()
-                self.access_token = self.get_access_token() if self.API_KEY and self.SECRET_KEY else None
+                # 保存设置前先验证 API 是否可用
+                new_api_key = ocr_key.get()
+                new_secret_key = ocr_secret.get()
                 
+                if new_api_key and new_secret_key:
+                    # 临时保存旧值
+                    old_api_key = self.API_KEY
+                    old_secret_key = self.SECRET_KEY
+                    
+                    # 尝试使用新值获取 token
+                    self.API_KEY = new_api_key
+                    self.SECRET_KEY = new_secret_key
+                    new_token = self.get_access_token()
+                    
+                    if new_token is None:
+                        # 如果获取失败，恢复旧值
+                        self.API_KEY = old_api_key
+                        self.SECRET_KEY = old_secret_key
+                        return False
+                    
+                    self.access_token = new_token
+                
+                # 保存 GPT 设置
                 self.GPT_API_URL = gpt_url.get()
                 self.GPT_API_KEY = gpt_key.get()
                 
@@ -254,33 +301,39 @@ class TextRecognizer:
     
     def show_message(self, message):
         """显示消息提示"""
-        msg = ctk.CTkToplevel(self.main_window)
-        msg.geometry("300x150")
-        msg.title("提示")
-        msg.attributes('-topmost', True)  # 确保消息窗口在最顶层
-        msg.focus_force()  # 强制获取焦点
-        
-        # 创建一个框架来容纳消息和按钮
-        frame = ctk.CTkFrame(msg)
-        frame.pack(expand=True, fill="both", padx=20, pady=20)
-        
-        # 显示消息
-        label = ctk.CTkLabel(frame, text=message, wraplength=250)
-        label.pack(pady=(0, 20))
-        
-        # 添加确认按钮
-        ok_button = ctk.CTkButton(frame, text="确定", command=msg.destroy, width=100)
-        ok_button.pack()
-        
-        # 使窗口居中
-        msg.update_idletasks()
-        x = self.main_window.winfo_x() + (self.main_window.winfo_width() - msg.winfo_width()) // 2
-        y = self.main_window.winfo_y() + (self.main_window.winfo_height() - msg.winfo_height()) // 2
-        msg.geometry(f"+{x}+{y}")
-        
-        # 确保窗口模态
-        msg.grab_set()
-        msg.wait_window()
+        try:
+            msg = ctk.CTkToplevel(self.main_window)
+            self.message_windows.append(msg)
+            msg.geometry("300x150")
+            msg.title("提示")
+            msg.attributes('-topmost', True)
+            msg.focus_force()
+            
+            frame = ctk.CTkFrame(msg)
+            frame.pack(expand=True, fill="both", padx=20, pady=20)
+            
+            label = ctk.CTkLabel(frame, text=message, wraplength=250)
+            label.pack(pady=(0, 20))
+            
+            def close_message():
+                try:
+                    msg.destroy()
+                    self.message_windows.remove(msg)
+                except:
+                    pass
+            
+            ok_button = ctk.CTkButton(frame, text="确定", command=close_message, width=100)
+            ok_button.pack()
+            
+            msg.update_idletasks()
+            x = self.main_window.winfo_x() + (self.main_window.winfo_width() - msg.winfo_width()) // 2
+            y = self.main_window.winfo_y() + (self.main_window.winfo_height() - msg.winfo_height()) // 2
+            msg.geometry(f"+{x}+{y}")
+            
+            msg.grab_set()
+            msg.wait_window()
+        except Exception as e:
+            print(f"显示消息失败: {str(e)}")
     
     def on_ask(self):
         """处理提问"""
@@ -406,6 +459,10 @@ class TextRecognizer:
     def capture_and_recognize(self, x1, y1, x2, y2):
         """处理文字识别"""
         try:
+            if not self.access_token:
+                self.show_message("请先配置并保存正确的百度 OCR API 密钥")
+                return
+                
             # 确保坐标正确
             x1, x2 = min(x1, x2), max(x1, x2)
             y1, y2 = min(y1, y2), max(y1, y2)
@@ -423,9 +480,13 @@ class TextRecognizer:
             headers = {'Content-Type': 'application/x-www-form-urlencoded'}
             data = {"image": img_base64}
             
-            response = requests.post(self.OCR_URL, params=params, headers=headers, data=data)
+            response = requests.post(self.OCR_URL, params=params, headers=headers, data=data, verify=False, timeout=30)
             result = response.json()
             
+            if 'error_code' in result:
+                self.show_message(f"识别失败: {result.get('error_msg', '未知错误')}")
+                return
+                
             if 'words_result' in result:
                 text = ' '.join([word['words'] for word in result['words_result']])
                 if text:
@@ -435,28 +496,84 @@ class TextRecognizer:
                     self.main_window.lift()
                     return
             
-            self.show_message("识别失败")
+            self.show_message("识别失败：未能识别出文字")
             
+        except requests.exceptions.SSLError as e:
+            self.show_message("SSL 证书验证失败，请检查网络设置")
+        except requests.exceptions.RequestException as e:
+            self.show_message(f"网络请求错误: {str(e)}")
         except Exception as e:
             self.show_message(f"识别错误: {str(e)}")
     
     def quit_application(self):
         """完全退出应用程序"""
-        keyboard.unhook_all()
-        self.main_window.quit()
+        try:
+            # 取消所有快捷键
+            keyboard.unhook_all()
+            
+            # 关闭所有消息窗口
+            for window in self.message_windows[:]:
+                try:
+                    if window.winfo_exists():
+                        window.destroy()
+                except:
+                    pass
+            self.message_windows.clear()
+            
+            # 关闭设置窗口
+            if self.settings_window is not None:
+                try:
+                    if self.settings_window.winfo_exists():
+                        self.settings_window.destroy()
+                except:
+                    pass
+            
+            # 关闭截图窗口
+            if self.capture_window is not None:
+                try:
+                    if self.capture_window.winfo_exists():
+                        self.capture_window.destroy()
+                except:
+                    pass
+            
+            # 关闭主窗口
+            if self.main_window is not None:
+                try:
+                    if self.main_window.winfo_exists():
+                        self.main_window.quit()
+                        self.main_window.destroy()
+                except:
+                    pass
+        except:
+            pass
+        finally:
+            # 确保程序完全退出
+            try:
+                os._exit(0)
+            except:
+                sys.exit(0)
 
 def main():
     ctk.set_appearance_mode("light")
     app = TextRecognizer()
     
-    # 注册快捷键
     def check_hotkey():
-        if keyboard.is_pressed('alt+1'):
-            app.start_capture()
-        app.main_window.after(100, check_hotkey)
+        try:
+            if keyboard.is_pressed('alt+1'):
+                app.start_capture()
+            if app.main_window and app.main_window.winfo_exists():
+                app.main_window.after(100, check_hotkey)
+        except:
+            pass
     
     app.main_window.after(100, check_hotkey)
-    app.main_window.mainloop()
+    
+    try:
+        app.main_window.mainloop()
+    except Exception as e:
+        print(f"主循环发生错误: {str(e)}")
+    finally:
+        app.quit_application()
 
 if __name__ == '__main__':
     main() 

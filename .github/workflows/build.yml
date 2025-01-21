@@ -24,13 +24,13 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        # 使用更轻量的 GUI 库
         pip install customtkinter==5.2.2
         pip install requests==2.31.0
         pip install pyautogui==0.9.54
         pip install keyboard==0.13.5
         pip install Pillow==10.0.0
         pip install pyinstaller==6.4.0
+        pip install urllib3==2.0.7
     
     - name: Create runtime hook
       shell: powershell
@@ -41,10 +41,21 @@ jobs:
         import atexit
         import ctypes
         from ctypes import wintypes
+        import urllib3
+        import warnings
+
+        # 禁用 SSL 警告
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
         def cleanup():
             """清理函数"""
-            os._exit(0)
+            try:
+                if hasattr(os, 'killpg'):
+                    os.killpg(os.getpgid(0), 9)
+                else:
+                    os._exit(0)
+            except:
+                sys.exit(0)
 
         # 注册清理函数
         atexit.register(cleanup)
@@ -73,21 +84,15 @@ jobs:
                     except:
                         pass
                     
-                    # 如果不可写，尝试使用 ProgramData 目录
-                    buf = ctypes.create_unicode_buffer(MAX_PATH)
-                    ctypes.windll.shell32.SHGetFolderPathW(
-                        None, CSIDL_COMMON_APPDATA, None, SHGFP_TYPE_CURRENT, buf
-                    )
-                    program_data = buf.value
-                    config_dir = os.path.join(program_data, "OCR-GPT")
-                    
-                    # 创建配置目录
+                    # 如果不可写，尝试使用用户目录
+                    user_dir = os.path.expanduser("~")
+                    config_dir = os.path.join(user_dir, "OCR-GPT")
                     os.makedirs(config_dir, exist_ok=True)
                     return config_dir
                 except:
-                    # 如果都失败了，使用用户目录
-                    user_dir = os.path.expanduser("~")
-                    config_dir = os.path.join(user_dir, "OCR-GPT")
+                    # 如果都失败了，使用临时目录
+                    import tempfile
+                    config_dir = os.path.join(tempfile.gettempdir(), "OCR-GPT")
                     os.makedirs(config_dir, exist_ok=True)
                     return config_dir
             else:
