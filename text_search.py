@@ -14,13 +14,14 @@ from tkinter import ttk
 import threading
 import urllib3
 import warnings
+from typing import Optional, Tuple
 
 # 禁用 SSL 警告
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 class TextRecognizer:
     def __init__(self):
-        self.capture_start = None
+        self.capture_start: Optional[Tuple[int, int]] = None
         self.is_capturing = False
         self.capture_window = None
         self.main_window = None
@@ -78,23 +79,41 @@ class TextRecognizer:
         try:
             if getattr(sys, 'frozen', False):
                 # 如果是打包后的 exe
-                application_path = sys._MEIPASS
+                application_path = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
             else:
                 # 如果是直接运行 py 文件
                 application_path = os.path.dirname(os.path.abspath(__file__))
             
             icon_path = os.path.join(application_path, 'ai.png')
             if os.path.exists(icon_path):
-                # 使用 PhotoImage 而不是 wm_iconphoto
-                icon = Image.open(icon_path)
-                # 确保图标大小合适
-                icon = icon.resize((32, 32), Image.Resampling.LANCZOS)
-                photo = ImageTk.PhotoImage(icon)
-                self.main_window.iconphoto(False, photo)
-                # 保持对图标的引用以防止被垃圾回收
-                self._icon_image = photo
+                # 使用 tkinter.PhotoImage 而不是 ImageTk.PhotoImage
+                import tkinter as tk
+                try:
+                    # 尝试使用 tkinter.PhotoImage（支持 PNG 格式）
+                    photo = tk.PhotoImage(file=icon_path)
+                    self.main_window.iconphoto(False, photo)
+                    # 保持对图标的引用以防止被垃圾回收
+                    self._icon_image = photo
+                except tk.TclError:
+                    # 如果 PNG 不支持，尝试使用 wm_iconbitmap（仅支持 ICO 格式）
+                    try:
+                        # 转换为 ICO 格式并保存临时文件
+                        icon = Image.open(icon_path)
+                        icon = icon.resize((32, 32), Image.Resampling.LANCZOS)
+                        ico_path = os.path.join(application_path, 'temp_icon.ico')
+                        icon.save(ico_path, format='ICO')
+                        self.main_window.iconbitmap(ico_path)
+                        # 清理临时文件
+                        try:
+                            os.remove(ico_path)
+                        except:
+                            pass
+                    except Exception:
+                        # 如果都失败了，忽略图标设置
+                        pass
         except Exception as e:
-            print(f"加载图标失败: {str(e)}")
+            # 图标加载失败不影响程序正常运行，仅记录日志
+            print(f"图标加载失败（不影响功能）: {str(e)}")
         
         # 创建文本区域
         text_label = ctk.CTkLabel(self.main_window, text="识别文本:", anchor="w")
@@ -131,7 +150,7 @@ class TextRecognizer:
         top_var = ctk.BooleanVar(value=is_topmost)
         top_checkbox = ctk.CTkCheckBox(self.left_buttons, text="置顶",
                                       variable=top_var,
-                                      command=lambda: self.main_window.attributes('-topmost', top_var.get()))
+                                      command=lambda: self.main_window.attributes('-topmost', top_var.get()) if self.main_window else None)
         top_checkbox.pack(side="left", padx=10)
         
         # 创建回答区域
@@ -159,8 +178,8 @@ class TextRecognizer:
             # Windows 平台
             self.main_window.wm_attributes('-topmost', True)
             self.main_window.update()
-            # 移除标题栏但保留最小化功能
-            style = self.main_window.style = ttk.Style()
+            # 创建样式对象（移除对不存在属性的赋值）
+            style = ttk.Style()
             style.configure('CustomWindow.TFrame', background='white')
         else:
             # Linux/Mac 平台
@@ -171,7 +190,7 @@ class TextRecognizer:
         # 如果已有设置窗口，先关闭它
         if self.settings_window is not None:
             try:
-                if self.settings_window.winfo_exists():
+                if hasattr(self.settings_window, 'winfo_exists') and self.settings_window.winfo_exists():
                     self.settings_window.destroy()
             except:
                 pass
@@ -242,7 +261,7 @@ class TextRecognizer:
                     new_gpt_key = gpt_key.get()
                     
                     # 获取当前窗口的置顶状态
-                    current_topmost = self.main_window.attributes('-topmost')
+                    current_topmost = self.main_window.attributes('-topmost') if self.main_window else False
                     
                     # 准备新的配置
                     config = {
@@ -289,13 +308,14 @@ class TextRecognizer:
             
             # 使窗口居中
             settings.update_idletasks()
-            x = self.main_window.winfo_x() + (self.main_window.winfo_width() - settings.winfo_width()) // 2
-            y = self.main_window.winfo_y() + (self.main_window.winfo_height() - settings.winfo_height()) // 2
-            settings.geometry(f"+{x}+{y}")
+            if self.main_window:
+                x = self.main_window.winfo_x() + (self.main_window.winfo_width() - settings.winfo_width()) // 2
+                y = self.main_window.winfo_y() + (self.main_window.winfo_height() - settings.winfo_height()) // 2
+                settings.geometry(f"+{x}+{y}")
             
             # 处理窗口关闭
             def on_closing():
-                if self.settings_window and self.settings_window.winfo_exists():
+                if self.settings_window and hasattr(self.settings_window, 'winfo_exists') and self.settings_window.winfo_exists():
                     self.settings_window.destroy()
                 self.settings_window = None
             
@@ -339,9 +359,10 @@ class TextRecognizer:
             ok_button.pack()
             
             msg.update_idletasks()
-            x = self.main_window.winfo_x() + (self.main_window.winfo_width() - msg.winfo_width()) // 2
-            y = self.main_window.winfo_y() + (self.main_window.winfo_height() - msg.winfo_height()) // 2
-            msg.geometry(f"+{x}+{y}")
+            if self.main_window:
+                x = self.main_window.winfo_x() + (self.main_window.winfo_width() - msg.winfo_width()) // 2
+                y = self.main_window.winfo_y() + (self.main_window.winfo_height() - msg.winfo_height()) // 2
+                msg.geometry(f"+{x}+{y}")
             
             # 处理窗口关闭
             msg.protocol("WM_DELETE_WINDOW", close_message)
@@ -398,16 +419,20 @@ class TextRecognizer:
                     answer = result['choices'][0]['message']['content']
                     if answer:
                         # 使用 after 在主线程中更新 UI
-                        self.main_window.after(0, self._update_answer, answer)
+                        if self.main_window:
+                            self.main_window.after(0, self._update_answer, answer)
                         return
             
-            self.main_window.after(0, self.show_message, "获取回答失败")
+            if self.main_window:
+                self.main_window.after(0, self.show_message, "获取回答失败")
             
         except Exception as e:
-            self.main_window.after(0, self.show_message, f"请求错误: {str(e)}")
+            if self.main_window:
+                self.main_window.after(0, self.show_message, f"请求错误: {str(e)}")
         finally:
             # 使用 after 在主线程中恢复按钮状态
-            self.main_window.after(0, self._reset_buttons)
+            if self.main_window:
+                self.main_window.after(0, self._reset_buttons)
     
     def _update_answer(self, answer):
         """更新答案"""
@@ -416,9 +441,10 @@ class TextRecognizer:
     
     def _reset_buttons(self):
         """恢复按钮状态"""
-        for widget in self.left_buttons.winfo_children():
-            if isinstance(widget, ctk.CTkButton):
-                widget.configure(state="normal")
+        if self.left_buttons:
+            for widget in self.left_buttons.winfo_children():
+                if isinstance(widget, ctk.CTkButton):
+                    widget.configure(state="normal")
     
     def start_capture(self):
         """开始截图"""
@@ -432,45 +458,50 @@ class TextRecognizer:
             self.canvas.pack(fill="both", expand=True)
             
             def on_press(event):
+                if self.is_capturing:
+                    return
                 self.capture_start = (event.x, event.y)
                 self.is_capturing = True
                 # 清除之前的选择框
                 self.canvas.delete("selection")
             
             def on_move(event):
-                if self.is_capturing:
+                if self.is_capturing and self.capture_start:
                     # 清除之前的选择框
                     self.canvas.delete("selection")
                     # 绘制新的选择框
                     x1, y1 = self.capture_start
                     x2, y2 = event.x, event.y
                     # 绘制半透明遮罩
-                    self.canvas.create_rectangle(
-                        0, 0, self.capture_window.winfo_width(), self.capture_window.winfo_height(),
-                        fill="black", stipple="gray50", tags="selection"
-                    )
-                    # 绘制选择框（清除遮罩）
-                    self.canvas.create_rectangle(
-                        min(x1, x2), min(y1, y2), max(x1, x2), max(y1, y2),
-                        outline="red", width=2, fill="", tags="selection"
-                    )
+                    if self.capture_window:
+                        self.canvas.create_rectangle(
+                            0, 0, self.capture_window.winfo_width(), self.capture_window.winfo_height(),
+                            fill="black", stipple="gray50", tags="selection"
+                        )
+                        # 绘制选择框（清除遮罩）
+                        self.canvas.create_rectangle(
+                            min(x1, x2), min(y1, y2), max(x1, x2), max(y1, y2),
+                            outline="red", width=2, fill="", tags="selection"
+                        )
             
             def on_release(event):
-                if self.is_capturing:
+                if self.is_capturing and self.capture_start:
                     self.is_capturing = False
                     x1, y1 = self.capture_start
                     x2, y2 = event.x, event.y
-                    self.capture_window.withdraw()
+                    if self.capture_window:
+                        self.capture_window.withdraw()
                     self.capture_and_recognize(x1, y1, x2, y2)
             
             self.canvas.bind("<Button-1>", on_press)
             self.canvas.bind("<B1-Motion>", on_move)
             self.canvas.bind("<ButtonRelease-1>", on_release)
-            self.canvas.bind("<Escape>", lambda e: self.capture_window.withdraw())
+            self.canvas.bind("<Escape>", lambda e: self.capture_window.withdraw() if self.capture_window else None)
         
-        self.capture_window.deiconify()
-        # 确保画布大小正确
-        self.canvas.update()
+        if self.capture_window:
+            self.capture_window.deiconify()
+            # 确保画布大小正确
+            self.canvas.update()
     
     def capture_and_recognize(self, x1, y1, x2, y2):
         """处理文字识别"""
@@ -508,8 +539,9 @@ class TextRecognizer:
                 if text:
                     self.text_input.delete("1.0", "end")
                     self.text_input.insert("1.0", text)
-                    self.main_window.deiconify()
-                    self.main_window.lift()
+                    if self.main_window:
+                        self.main_window.deiconify()
+                        self.main_window.lift()
                     return
             
             self.show_message("识别失败：未能识别出文字")
@@ -528,14 +560,17 @@ class TextRecognizer:
             keyboard.unhook_all()
             
             # 取消所有定时任务
-            if self.main_window and self.main_window.winfo_exists():
-                for after_id in self.main_window.tk.call('after', 'info'):
-                    self.main_window.after_cancel(after_id)
+            if self.main_window and hasattr(self.main_window, 'winfo_exists') and self.main_window.winfo_exists():
+                try:
+                    for after_id in self.main_window.tk.call('after', 'info'):
+                        self.main_window.after_cancel(after_id)
+                except:
+                    pass
             
             # 关闭所有消息窗口
             for window in self.message_windows[:]:
                 try:
-                    if window and window.winfo_exists():
+                    if window and hasattr(window, 'winfo_exists') and window.winfo_exists():
                         window.destroy()
                 except:
                     pass
@@ -544,7 +579,7 @@ class TextRecognizer:
             # 关闭设置窗口
             if self.settings_window is not None:
                 try:
-                    if self.settings_window.winfo_exists():
+                    if hasattr(self.settings_window, 'winfo_exists') and self.settings_window.winfo_exists():
                         self.settings_window.destroy()
                 except:
                     pass
@@ -553,7 +588,7 @@ class TextRecognizer:
             # 关闭截图窗口
             if self.capture_window is not None:
                 try:
-                    if self.capture_window.winfo_exists():
+                    if hasattr(self.capture_window, 'winfo_exists') and self.capture_window.winfo_exists():
                         self.capture_window.destroy()
                 except:
                     pass
@@ -562,7 +597,7 @@ class TextRecognizer:
             # 关闭主窗口
             if self.main_window is not None:
                 try:
-                    if self.main_window.winfo_exists():
+                    if hasattr(self.main_window, 'winfo_exists') and self.main_window.winfo_exists():
                         self.main_window.quit()
                         self.main_window.destroy()
                 except:
@@ -585,16 +620,17 @@ def main():
         try:
             if keyboard.is_pressed('alt+1'):
                 app.start_capture()
-            if app.main_window and app.main_window.winfo_exists():
+            if app.main_window and hasattr(app.main_window, 'winfo_exists') and app.main_window.winfo_exists():
                 app.main_window.after(100, check_hotkey)
         except:
             pass
     
-    if app.main_window and app.main_window.winfo_exists():
+    if app.main_window and hasattr(app.main_window, 'winfo_exists') and app.main_window.winfo_exists():
         app.main_window.after(100, check_hotkey)
     
     try:
-        app.main_window.mainloop()
+        if app.main_window:
+            app.main_window.mainloop()
     except Exception as e:
         print(f"主循环发生错误: {str(e)}")
     finally:
