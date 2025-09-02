@@ -539,7 +539,8 @@ class TextRecognizer:
                     print(f"结束选择: ({x1}, {y1}) -> ({x2}, {y2})")
                     
                     # 隐藏截图窗口
-                    self.capture_window.withdraw()
+                    if self.capture_window:
+                        self.capture_window.withdraw()
                     
                     # 处理OCR
                     try:
