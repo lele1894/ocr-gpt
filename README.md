@@ -133,9 +133,9 @@ ocr-gpt/
 
 ## 📷 截图示例
 
-![OCR-GPT 主界面](https://via.placeholder.com/600x400?text=OCR-GPT+%E4%B8%BB%E7%95%8C%E9%9D%A2)
+![OCR-GPT 主界面](yl.png)
 
-*正在开发中，截图将在正式发布时添加*
+*OCR-GPT 主界面界面展示 - 支持截图识别、智能问答、窗口置顶等功能*
 
 ## 🔍 故障排除
 
