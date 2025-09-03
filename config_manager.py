@@ -30,19 +30,37 @@ class ConfigManager:
         self.config = self.load_config()
     
     def _get_config_path(self):
-        """获取配置文件路径"""
+        """获取配置文件路径 - 优先使用exe同文件夹"""
         try:
-            # 首选用户目录
-            user_dir = os.path.join(os.path.expanduser('~'), 'OCR-GPT')
-            if not os.path.exists(user_dir):
-                os.makedirs(user_dir)
-            return os.path.join(user_dir, 'config.json')
-        except:
-            # 如果用户目录不可用，使用临时目录
-            temp_dir = os.path.join(tempfile.gettempdir(), 'OCR-GPT')
-            if not os.path.exists(temp_dir):
-                os.makedirs(temp_dir)
-            return os.path.join(temp_dir, 'config.json')
+            # 如果是打包后的exe文件，使用exe同文件夹
+            if getattr(sys, 'frozen', False):
+                # 获取exe文件所在的目录
+                exe_dir = os.path.dirname(sys.executable)
+                config_path = os.path.join(exe_dir, 'config.json')
+                self.logger.info(f"检测到打包环境，使用exe同文件夹: {config_path}")
+                return config_path
+            else:
+                # 开发环境，使用脚本同文件夹
+                script_dir = os.path.dirname(os.path.abspath(__file__))
+                config_path = os.path.join(script_dir, 'config.json')
+                self.logger.info(f"开发环境，使用脚本同文件夹: {config_path}")
+                return config_path
+        except Exception as e:
+            self.logger.error(f"获取配置路径失败: {str(e)}")
+            # 备用方案：使用当前目录
+            try:
+                current_dir = os.getcwd()
+                config_path = os.path.join(current_dir, 'config.json')
+                self.logger.info(f"使用当前目录作为备用: {config_path}")
+                return config_path
+            except:
+                # 最后的备用方案：使用临时目录
+                temp_dir = os.path.join(tempfile.gettempdir(), 'OCR-GPT')
+                if not os.path.exists(temp_dir):
+                    os.makedirs(temp_dir)
+                config_path = os.path.join(temp_dir, 'config.json')
+                self.logger.warning(f"使用临时目录作为最后备用: {config_path}")
+                return config_path
     
     def load_config(self):
         """加载配置文件"""

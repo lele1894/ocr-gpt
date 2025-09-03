@@ -67,7 +67,7 @@ class TextRecognizer:
     def create_main_window(self):
         """创建主窗口"""
         self.main_window = tk.Tk()
-        self.main_window.title("OCR-GPT")
+        self.main_window.title("OCR-GPT 识别文本截取热键:Alt+1")
         self.main_window.geometry("600x400")
         
         # 从配置中读取置顶状态

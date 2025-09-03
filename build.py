@@ -92,7 +92,7 @@ def build_exe():
         '--name=OCR-GPT',              # 指定输出文件名
         '--clean',                      # 清理临时文件
         '--noconfirm',                 # 不要确认覆盖
-        '--icon=ai.png',               # 设置图标
+        '--icon=ai.ico',               # 设置图标
         '--version-file=version_info.txt',  # 版本信息
         # 隐藏导入的模块
         '--hidden-import=keyboard',
@@ -112,6 +112,7 @@ def build_exe():
         '--exclude-module=jupyter',
         # 添加数据文件
         '--add-data=ai.png;.',
+        '--add-data=ai.ico;.',
         '--add-data=config_manager.py;.',
         # 主程序文件
         'text_search.py'
