@@ -15,7 +15,7 @@ VSVersionInfo(
       StringTable(
         '080404b0',
         [StringStruct('CompanyName', 'OCR-GPT Team'),
-        StringStruct('FileDescription', 'OCR-GPT 文本识别助手'),
+        StringStruct('FileDescription', 'OCR-GPT Text Recognition Assistant'),
         StringStruct('FileVersion', '1.0.0.0'),
         StringStruct('InternalName', 'OCR-GPT'),
         StringStruct('LegalCopyright', 'Copyright © 2024'),

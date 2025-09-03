@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-OCR-GPT 打包脚本
-使用 PyInstaller 将 Python 程序打包为 exe 文件
+OCR-GPT Build Script
+Use PyInstaller to package Python program into exe file
 """
 
 import os
@@ -11,42 +11,54 @@ import shutil
 import subprocess
 from pathlib import Path
 
+# Set environment variable for GitHub Actions
+if 'GITHUB_ACTIONS' in os.environ:
+    os.environ['PYTHONIOENCODING'] = 'utf-8'
+
+def safe_print(text):
+    """Safe print function for different environments"""
+    try:
+        print(text)
+    except UnicodeEncodeError:
+        # Fallback to ASCII-only output in problematic environments
+        print(text.encode('ascii', 'replace').decode('ascii'))
+
 def clean_build_dirs():
-    """清理之前的构建目录"""
+    """Clean previous build directories"""
     dirs_to_clean = ['build', 'dist', '__pycache__']
     for dir_name in dirs_to_clean:
         if os.path.exists(dir_name):
-            print(f"清理目录: {dir_name}")
+            safe_print(f"Cleaning directory: {dir_name}")
             shutil.rmtree(dir_name)
     
-    # 删除 .spec 文件
+    # Delete .spec files
     spec_files = list(Path('.').glob('*.spec'))
     for spec_file in spec_files:
-        print(f"删除文件: {spec_file}")
+        safe_print(f"Deleting file: {spec_file}")
         spec_file.unlink()
 
 def check_dependencies():
-    """检查依赖是否已安装"""
+    """Check if dependencies are installed"""
     try:
         import PyInstaller
-        print(f"PyInstaller 版本: {PyInstaller.__version__}")
+        safe_print(f"PyInstaller version: {PyInstaller.__version__}")
     except ImportError:
-        print("PyInstaller 未安装，正在安装...")
+        safe_print("PyInstaller not installed, installing...")
         subprocess.run([sys.executable, "-m", "pip", "install", "pyinstaller"], check=True)
     
-    # 检查其他依赖
+    # Check other dependencies
     required_modules = ['requests', 'pyautogui', 'keyboard', 'PIL']
     for module in required_modules:
         try:
             __import__(module)
-            print(f"✓ {module} 已安装")
+            safe_print(f"✓ {module} installed")
         except ImportError:
-            print(f"✗ {module} 未安装")
+            safe_print(f"✗ {module} not installed")
             return False
     return True
 
 def create_version_file():
-    """创建版本信息文件"""
+    """Create version info file"""
     version_content = """VSVersionInfo(
   ffi=FixedFileInfo(
     filevers=(1, 0, 0, 0),
@@ -64,7 +76,7 @@ def create_version_file():
       StringTable(
         '080404b0',
         [StringStruct('CompanyName', 'OCR-GPT Team'),
-        StringStruct('FileDescription', 'OCR-GPT 文本识别助手'),
+        StringStruct('FileDescription', 'OCR-GPT Text Recognition Assistant'),
         StringStruct('FileVersion', '1.0.0.0'),
         StringStruct('InternalName', 'OCR-GPT'),
         StringStruct('LegalCopyright', 'Copyright © 2024'),
@@ -78,23 +90,23 @@ def create_version_file():
     
     with open('version_info.txt', 'w', encoding='utf-8') as f:
         f.write(version_content)
-    print("✓ 版本信息文件已创建")
+    safe_print("✓ Version info file created")
 
 def build_exe():
-    """构建 exe 文件"""
-    print("开始打包...")
+    """Build exe file"""
+    safe_print("Starting build process...")
     
-    # PyInstaller 命令参数
+    # PyInstaller command arguments
     cmd = [
         'pyinstaller',
-        '--onefile',                    # 打包成单个文件
-        '--windowed',                   # 不显示控制台窗口
-        '--name=OCR-GPT',              # 指定输出文件名
-        '--clean',                      # 清理临时文件
-        '--noconfirm',                 # 不要确认覆盖
-        '--icon=ai.ico',               # 设置图标
-        '--version-file=version_info.txt',  # 版本信息
-        # 隐藏导入的模块
+        '--onefile',                    # Package into single file
+        '--windowed',                   # No console window
+        '--name=OCR-GPT',              # Output filename
+        '--clean',                      # Clean temp files
+        '--noconfirm',                 # No confirmation for overwrite
+        '--icon=ai.ico',               # Set icon
+        '--version-file=version_info.txt',  # Version info
+        # Hidden imports
         '--hidden-import=keyboard',
         '--hidden-import=pyautogui', 
         '--hidden-import=requests',
@@ -103,28 +115,28 @@ def build_exe():
         '--hidden-import=tkinter.ttk',
         '--hidden-import=tkinter.scrolledtext',
         '--hidden-import=tkinter.messagebox',
-        # 排除不需要的模块以减小体积
+        # Exclude unnecessary modules to reduce size
         '--exclude-module=matplotlib',
         '--exclude-module=numpy',
         '--exclude-module=pandas',
         '--exclude-module=scipy',
         '--exclude-module=IPython',
         '--exclude-module=jupyter',
-        # 添加数据文件
+        # Add data files
         '--add-data=ai.png;.',
         '--add-data=ai.ico;.',
         '--add-data=config_manager.py;.',
-        # 主程序文件
+        # Main program file
         'text_search.py'
     ]
     
     try:
         result = subprocess.run(cmd, check=True, capture_output=True, text=True)
-        print("✓ 打包成功!")
+        safe_print("✓ Build successful!")
         return True
     except subprocess.CalledProcessError as e:
-        print(f"✗ 打包失败: {e}")
-        print("错误输出:", e.stderr)
+        safe_print(f"✗ Build failed: {e}")
+        safe_print(f"Error output: {e.stderr}")
         return False
 
 def post_build():
@@ -134,8 +146,8 @@ def post_build():
         exe_file = dist_dir / 'OCR-GPT.exe'
         if exe_file.exists():
             size_mb = exe_file.stat().st_size / (1024 * 1024)
-            print(f"✓ 生成的文件: {exe_file}")
-            print(f"✓ 文件大小: {size_mb:.2f} MB")
+            safe_print(f"✓ Generated file: {exe_file}")
+            safe_print(f"✓ File size: {size_mb:.2f} MB")
             
             # 创建使用说明
             readme_content = """# OCR-GPT 使用说明
@@ -177,35 +189,35 @@ OCR-GPT 是一个基于 GPT 的文本助手，提供截图 OCR 和智能问答�
             readme_file = dist_dir / '使用说明.md'
             with open(readme_file, 'w', encoding='utf-8') as f:
                 f.write(readme_content)
-            print(f"✓ 使用说明已创建: {readme_file}")
+            safe_print(f"✓ Usage instructions created: {readme_file}")
         else:
-            print("✗ 未找到生成的 exe 文件")
+            safe_print("✗ Generated exe file not found")
     else:
-        print("✗ dist 目录不存在")
+        safe_print("✗ dist directory does not exist")
 
 def main():
-    """主函数"""
-    print("=" * 50)
-    print("OCR-GPT 打包工具")
-    print("=" * 50)
+    """Main function"""
+    safe_print("=" * 50)
+    safe_print("OCR-GPT Build Tool")
+    safe_print("=" * 50)
     
-    # 检查依赖
+    # Check dependencies
     if not check_dependencies():
-        print("✗ 依赖检查失败，请先安装所需依赖")
+        safe_print("✗ Dependency check failed, please install required dependencies first")
         return
     
-    # 清理构建目录
+    # Clean build directories
     clean_build_dirs()
     
-    # 创建版本文件
+    # Create version file
     create_version_file()
     
-    # 开始打包
+    # Start building
     if build_exe():
         post_build()
-        print("\n✓ 打包完成! 请查看 dist 目录")
+        safe_print("\n✓ Build completed! Please check the dist directory")
     else:
-        print("\n✗ 打包失败")
+        safe_print("\n✗ Build failed")
 
 if __name__ == '__main__':
     main()
