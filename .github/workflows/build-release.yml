@@ -100,59 +100,73 @@ jobs:
         # 复制主程序
         Copy-Item "dist\OCR-GPT.exe" "release\"
         
-        # 创建使用说明
-        $readme = @"
-# OCR-GPT v${{ github.event.inputs.version }}
-
-## 🚀 快速开始
-
-1. **下载并运行**
-   - 双击 OCR-GPT.exe 启动程序
-   - 首次运行会在程序目录创建 config.json 配置文件
-
-2. **配置API密钥**
-   - 点击"设置"按钮
-   - 配置百度OCR API（可选）
-   - 配置GPT API（必需）
-
-3. **开始使用**
-   - 按 Alt+1 截图识别文本
-   - 在文本框中编辑或输入问题
-   - 按回车或点击"提问"获取AI回答
-
-## 🔧 API配置
-
-### 百度OCR（可选）
-- 访问：https://ai.baidu.com
-- 获取 API Key 和 Secret Key
-
-### GPT API（必需）
-- 推荐：https://free.v36.cm
-- 获取 API Key
-
-## 💡 使用技巧
-
-- **快捷键**: Alt+1 快速截图识别
-- **置顶窗口**: 勾选"置顶"保持窗口在最前
-- **回车提问**: 在文本框中按回车快速提问
-- **便携使用**: 程序和配置文件可以一起移动
-
-## ⚠️ 注意事项
-
-- 需要网络连接使用API服务
-- 首次运行可能被杀毒软件误报，请添加信任
-- 配置文件保存在程序同目录，便于备份
-
-## 🐛 问题反馈
-
-如遇问题，请访问：https://github.com/${{ github.repository }}/issues
-
----
-构建时间: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")
-构建版本: ${{ github.event.inputs.version }}
-"@
+        # 创建使用说明文件
+        Write-Output "创建使用说明文件..."
         
-        $readme | Out-File -FilePath "release\使用说明.txt" -Encoding UTF8
+        # 使用简单的 PowerShell 字符串构建
+        $title = "# OCR-GPT v${{ github.event.inputs.version }}"
+        $quickStart = @(
+          "",
+          "## 🚀 快速开始",
+          "",
+          "1. **下载并运行**",
+          "   - 双击 OCR-GPT.exe 启动程序",
+          "   - 首次运行会在程序目录创建 config.json 配置文件",
+          "",
+          "2. **配置API密钥**",
+          "   - 点击设置按钮",
+          "   - 配置百度OCR API（可选）",
+          "   - 配置GPT API（必需）",
+          "",
+          "3. **开始使用**",
+          "   - 按 Alt+1 截图识别文本",
+          "   - 在文本框中编辑或输入问题",
+          "   - 按回车或点击提问获取AI回答"
+        )
+        
+        $apiConfig = @(
+          "",
+          "## 🔧 API配置",
+          "",
+          "### 百度OCR（可选）",
+          "- 访问：https://ai.baidu.com",
+          "- 获取 API Key 和 Secret Key",
+          "",
+          "### GPT API（必需）",
+          "- 推荐：https://free.v36.cm",
+          "- 获取 API Key"
+        )
+        
+        $tips = @(
+          "",
+          "## 💡 使用技巧",
+          "",
+          "- 快捷键: Alt+1 快速截图识别",
+          "- 置顶窗口: 勾选置顶保持窗口在最前",
+          "- 回车提问: 在文本框中按回车快速提问",
+          "- 便携使用: 程序和配置文件可以一起移动"
+        )
+        
+        $notes = @(
+          "",
+          "## ⚠️ 注意事项",
+          "",
+          "- 需要网络连接使用API服务",
+          "- 首次运行可能被杀毒软件误报，请添加信任",
+          "- 配置文件保存在程序同目录，便于备份",
+          "",
+          "## 🐛 问题反馈",
+          "",
+          "如遇问题，请访问：https://github.com/${{ github.repository }}/issues",
+          "",
+          "---",
+          "构建时间: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')",
+          "构建版本: ${{ github.event.inputs.version }}"
+        )
+        
+        # 合并所有内容
+        $allContent = $title + $quickStart + $apiConfig + $tips + $notes
+        $allContent | Out-File -FilePath "release\使用说明.txt" -Encoding UTF8
         
         # 创建版本信息文件
         $versionInfo = @{
