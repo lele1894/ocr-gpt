@@ -26,7 +26,7 @@ on:
 
 jobs:
   build-and-release:
-    runs-on: windows-latest
+    runs-on: windows-2022
     
     steps:
     - name: 检出代码
@@ -196,7 +196,7 @@ jobs:
       shell: pwsh
       
     - name: 上传构建产物
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: OCR-GPT-${{ github.event.inputs.version }}
         path: |
