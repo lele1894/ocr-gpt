@@ -145,6 +145,15 @@ def build_exe():
         '--hidden-import=urllib3.util',
         '--hidden-import=urllib3.connection',
         '--hidden-import=ssl',
+        '--hidden-import=_ssl',
+        '--hidden-import=hashlib',
+        '--hidden-import=certifi',
+        '--hidden-import=encodings',
+        '--hidden-import=encodings.idna',
+        '--hidden-import=encodings.utf_8',
+        '--hidden-import=encodings.latin_1',
+        '--hidden-import=codecs',
+        '--hidden-import=locale',
         '--hidden-import=PIL',
         '--hidden-import=tkinter',
         '--hidden-import=tkinter.ttk',
@@ -174,6 +183,16 @@ def build_exe():
         # Main program file
         'text_search.py'
     ]
+    
+    # 在GitHub Actions环境中添加特定参数以确保SSL模块正确包含
+    if 'GITHUB_ACTIONS' in os.environ:
+        cmd.extend([
+            '--collect-all=ssl',
+            '--collect-all=_ssl',
+            '--collect-all=hashlib',
+            '--collect-all=encodings',
+            '--collect-all=codecs',
+        ])
     
     try:
         result = subprocess.run(cmd, check=True, capture_output=True, text=True)
