@@ -126,6 +126,12 @@ def build_exe():
         '--exclude-module=seaborn',
         '--exclude-module=plotly',
         '--exclude-module=bokeh',
+        '--exclude-module=sqlite3',  # 通常不需要的模块
+        '--exclude-module=ssl',      # 如果不需要SSL可排除
+        '--exclude-module=urllib3.contrib.pyopenssl',  # 减小体积
+        '--strip',  # 从可执行文件中移除调试信息
+        '--noupx',  # 不使用UPX压缩（如果可用）
+
         # Add data files
         '--add-data=ai.png;.',
         '--add-data=ai.ico;.',

@@ -402,7 +402,7 @@ class TextRecognizer:
                 "messages": [
                     {
                         "role": "system",
-                        "content": "你是一个用中文回答问题的AI助手"
+                        "content": "你是一个用中文回答问题的AI助手,如果只有英文输入就返回翻译信息."
                     },
                     {
                         "role": "user",

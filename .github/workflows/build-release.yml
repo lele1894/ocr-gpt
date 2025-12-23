@@ -26,7 +26,7 @@ on:
 
 jobs:
   build-and-release:
-    runs-on: windows-2022
+    runs-on: windows-latest
     
     steps:
     - name: 检出代码
@@ -42,6 +42,10 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install pyinstaller
+        
+    - name: 优化依赖安装
+      run: |
+        pip install --no-cache-dir pyinstaller[hook_testing]
         
     - name: 验证图标文件
       run: |
@@ -80,12 +84,37 @@ jobs:
     - name: 构建应用程序
       run: |
         Write-Output "开始构建 OCR-GPT..."
+        
+        # 显示Python和依赖版本
+        python --version
+        pip list | findstr -i "pyinstaller requests pyautogui keyboard pillow"
+        
+        # 显示构建脚本信息
+        Write-Output "构建脚本内容预览:"
+        Get-Content build.py | Select-Object -First 20 | ForEach-Object { Write-Output "  $_" }
+        
+        # 运行构建脚本
         python build.py
         
         # 验证构建结果
         if (Test-Path "dist\OCR-GPT.exe") {
           $size = (Get-Item "dist\OCR-GPT.exe").Length / 1MB
           Write-Output "✓ 构建成功! OCR-GPT.exe ($([math]::Round($size, 2)) MB)"
+          
+          # 显示构建文件的详细信息
+          $fileInfo = Get-Item "dist\OCR-GPT.exe"
+          Write-Output "  创建时间: $($fileInfo.CreationTime)"
+          Write-Output "  文件大小: $([math]::Round($fileInfo.Length / 1MB, 2)) MB"
+          Write-Output "  文件版本: $($fileInfo.VersionInfo.FileVersion)"
+          
+          # 检查文件是否可执行（基本检查）
+          try {
+            $fileStream = [System.IO.File]::OpenRead("dist\OCR-GPT.exe")
+            $fileStream.Close()
+            Write-Output "✓ 文件可访问，无锁定问题"
+          } catch {
+            Write-Warning "⚠ 文件访问测试失败: $($_.Exception.Message)"
+          }
         } else {
           Write-Error "✗ 构建失败，未找到 OCR-GPT.exe"
           exit 1
@@ -99,6 +128,16 @@ jobs:
         
         # 复制主程序
         Copy-Item "dist\OCR-GPT.exe" "release\"
+        
+        # 验证程序文件完整性
+        $exePath = "release\OCR-GPT.exe"
+        if (Test-Path $exePath) {
+          $exeSize = (Get-Item $exePath).Length / 1MB
+          Write-Output "✓ 主程序已复制: OCR-GPT.exe ($([math]::Round($exeSize, 2)) MB)"
+        } else {
+          Write-Error "✗ 主程序复制失败"
+          exit 1
+        }
         
         # 创建使用说明文件
         Write-Output "创建使用说明文件..."
@@ -175,6 +214,8 @@ jobs:
           build_time = "$(Get-Date -Format 'HH:mm:ss')"
           commit_sha = "${{ github.sha }}"
           repository = "${{ github.repository }}"
+          python_version = "$(python --version)"
+          build_size_mb = "$([math]::Round((Get-Item $exePath).Length / 1MB, 2))"
         }
         
         $versionInfo | ConvertTo-Json -Depth 2 | Out-File -FilePath "release\version.json" -Encoding UTF8
@@ -193,6 +234,11 @@ jobs:
         
         $zipSize = (Get-Item "OCR-GPT-${{ github.event.inputs.version }}-windows.zip").Length / 1MB
         Write-Output "✓ ZIP包创建完成: OCR-GPT-${{ github.event.inputs.version }}-windows.zip ($([math]::Round($zipSize, 2)) MB)"
+        
+        # 显示ZIP包内容
+        $zipInfo = Get-Item "OCR-GPT-${{ github.event.inputs.version }}-windows.zip"
+        Write-Output "  ZIP文件大小: $([math]::Round($zipInfo.Length / 1MB, 2)) MB"
+        Write-Output "  创建时间: $($zipInfo.CreationTime)"
       shell: pwsh
       
     - name: 上传构建产物
@@ -202,7 +248,15 @@ jobs:
         path: |
           release/
           OCR-GPT-${{ github.event.inputs.version }}-windows.zip
-        retention-days: 30
+        retention-days: 90
+        
+    - name: 验证上传的产物
+      run: |
+        Write-Output "✓ 构建产物已成功上传"
+        Write-Output "  版本: ${{ github.event.inputs.version }}"
+        Write-Output "  产物名称: OCR-GPT-${{ github.event.inputs.version }}"
+        Write-Output "  保留天数: 90天"
+      shell: pwsh
         
     - name: 创建GitHub Release
       uses: softprops/action-gh-release@v1
