@@ -192,7 +192,19 @@ def build_exe():
             '--collect-all=hashlib',
             '--collect-all=encodings',
             '--collect-all=codecs',
+            '--collect-all=certifi',
+            '--collect-all=urllib3',
+            '--collect-all=requests',
         ])
+        
+        # 尝试添加证书文件
+        try:
+            import certifi
+            cmd.extend([
+                f'--add-data={certifi.where()};.',
+            ])
+        except ImportError:
+            safe_print("certifi not available, skipping certificate file inclusion")
     
     try:
         result = subprocess.run(cmd, check=True, capture_output=True, text=True)

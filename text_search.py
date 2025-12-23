@@ -42,9 +42,32 @@ class TextRecognizer:
         self.GPT_API_KEY = config['gpt']['api_key']
         self.GPT_MODEL = config['gpt']['model']
         
+        # 初始化SSL环境
+        self._init_ssl_environment()
+        
         # 创建主窗口
         self.create_main_window()
         
+    def _init_ssl_environment(self):
+        """初始化SSL环境以确保HTTPS请求正常工作"""
+        try:
+            # 确保SSL模块正确加载
+            import ssl
+            import urllib3
+            import certifi
+            
+            # 禁用SSL警告
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+            
+            # 确保证书路径正确
+            if hasattr(os, 'environ'):
+                os.environ['REQUESTS_CA_BUNDLE'] = certifi.where()
+                os.environ['SSL_CERT_FILE'] = certifi.where()
+            
+        except Exception as e:
+            print(f"SSL环境初始化警告: {str(e)}")
+            # 即使初始化失败也不影响程序运行
+    
     def get_access_token(self):
         """获取百度 API access token"""
         try:
