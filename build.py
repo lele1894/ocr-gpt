@@ -161,6 +161,7 @@ def build_exe():
         '--hidden-import=tkinter.scrolledtext',
         '--hidden-import=tkinter.messagebox',
         # Exclude unnecessary modules to reduce size
+        # 保留基础库，只排除大型库
         '--exclude-module=matplotlib',
         '--exclude-module=numpy',
         '--exclude-module=pandas',
@@ -171,16 +172,33 @@ def build_exe():
         '--exclude-module=seaborn',
         '--exclude-module=plotly',
         '--exclude-module=bokeh',
-        '--exclude-module=sqlite3',  # 通常不需要的模块
-        # '--exclude-module=ssl',      # SSL模块需要用于HTTPS请求，不能排除
-        # '--exclude-module=urllib3.contrib.pyopenssl',  # 减小体积
+        # 不排除SSL相关模块
+        # '--exclude-module=ssl',
+        # '--exclude-module=sqlite3',
+        # '--exclude-module=urllib3.contrib.pyopenssl',
         '--strip',  # 从可执行文件中移除调试信息
         '--noupx',  # 不使用UPX压缩（如果可用）
+        '--uac-admin',  # 以管理员权限运行（如果需要）
 
         # Add data files
         '--add-data=ai.png;.',
         '--add-data=ai.ico;.',
         '--add-data=config_manager.py;.',
+        '--add-data=requirements.txt;.',  # 添加requirements文件
+        
+        # 包含更多Python标准库组件
+        '--collect-submodules=tkinter',
+        '--collect-submodules=PIL',
+        '--collect-submodules=requests',
+        '--collect-submodules=urllib3',
+        '--collect-submodules=encodings',
+        '--collect-submodules=ssl',
+        '--collect-submodules=hashlib',
+        '--collect-submodules=certifi',
+        '--collect-submodules=charset_normalizer',
+        '--collect-submodules=idna',
+        '--collect-submodules=pyautogui',
+        '--collect-submodules=keyboard',
         # Main program file
         'text_search.py'
     ]
@@ -219,6 +237,23 @@ def build_exe():
         cmd.extend([
             '--hidden-import=ssl',  # 确保SSL模块正确加载
             '--hidden-import=_hashlib',  # 确保哈希模块可用
+            '--hidden-import=ssl.match_hostname',  # 确保SSL主机名验证可用
+            '--hidden-import=urllib3.contrib.pyopenssl',
+            '--hidden-import=urllib3.util.ssl_',
+            '--hidden-import=urllib3.util.retry',
+            '--hidden-import=urllib3.util.timeout',
+            '--hidden-import=urllib3.util.request',
+            '--hidden-import=urllib3.util.connection',
+            '--hidden-import=urllib3.packages.ssl_match_hostname',
+        ])
+        
+        # 添加更多Python运行时依赖
+        cmd.extend([
+            '--collect-data=requests',
+            '--collect-data=urllib3',
+            '--collect-data=certifi',
+            '--collect-data=charset_normalizer',
+            '--collect-data=idna',
         ])
         
         # 为Windows环境添加SSL DLL路径
