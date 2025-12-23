@@ -140,6 +140,11 @@ def build_exe():
         '--hidden-import=keyboard',
         '--hidden-import=pyautogui', 
         '--hidden-import=requests',
+        '--hidden-import=requests.packages.urllib3',
+        '--hidden-import=urllib3',
+        '--hidden-import=urllib3.util',
+        '--hidden-import=urllib3.connection',
+        '--hidden-import=ssl',
         '--hidden-import=PIL',
         '--hidden-import=tkinter',
         '--hidden-import=tkinter.ttk',
@@ -157,8 +162,8 @@ def build_exe():
         '--exclude-module=plotly',
         '--exclude-module=bokeh',
         '--exclude-module=sqlite3',  # 通常不需要的模块
-        '--exclude-module=ssl',      # 如果不需要SSL可排除
-        '--exclude-module=urllib3.contrib.pyopenssl',  # 减小体积
+        # '--exclude-module=ssl',      # SSL模块需要用于HTTPS请求，不能排除
+        # '--exclude-module=urllib3.contrib.pyopenssl',  # 减小体积
         '--strip',  # 从可执行文件中移除调试信息
         '--noupx',  # 不使用UPX压缩（如果可用）
 

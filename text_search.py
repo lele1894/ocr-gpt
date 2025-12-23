@@ -49,6 +49,10 @@ class TextRecognizer:
         """获取百度 API access token"""
         try:
             url = f"https://aip.baidubce.com/oauth/2.0/token?grant_type=client_credentials&client_id={self.API_KEY}&client_secret={self.SECRET_KEY}"
+            import ssl
+            import urllib3
+            # 禁用 SSL 警告
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
             response = requests.get(url, verify=False, timeout=10)  # 禁用 SSL 验证
             if response.status_code == 200:
                 return response.json().get("access_token")
@@ -412,6 +416,10 @@ class TextRecognizer:
                 "temperature": 0.7
             }
             
+            import ssl
+            import urllib3
+            # 禁用 SSL 警告
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
             response = requests.post(
                 self.GPT_API_URL,
                 headers={
@@ -639,6 +647,10 @@ class TextRecognizer:
             headers = {'Content-Type': 'application/x-www-form-urlencoded'}
             data = {"image": img_base64}
             
+            import ssl
+            import urllib3
+            # 禁用 SSL 警告
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
             response = requests.post(self.OCR_URL, params=params, headers=headers, data=data, verify=False, timeout=30)
             result = response.json()
             
