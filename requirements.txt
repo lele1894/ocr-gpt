@@ -2,4 +2,7 @@ requests
 pyautogui
 keyboard
 Pillow
-tkinter
+urllib3
+certifi
+charset-normalizer
+idna

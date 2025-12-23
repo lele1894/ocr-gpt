@@ -129,7 +129,7 @@ def build_exe():
     # PyInstaller command arguments
     cmd = [
         'pyinstaller',
-        '--onefile',                    # Package into single file
+        '--onedir',                    # Package into directory (includes Python runtime)
         '--windowed',                   # No console window
         '--name=OCR-GPT',              # Output filename
         '--clean',                      # Clean temp files
@@ -195,6 +195,14 @@ def build_exe():
             '--collect-all=certifi',
             '--collect-all=urllib3',
             '--collect-all=requests',
+            '--collect-all=charset_normalizer',
+            '--collect-all=idna',
+            '--collect-all=urllib3.contrib.pyopenssl',
+            '--collect-all=urllib3.util.ssl_',
+            '--collect-all=encodings.hz',
+            '--collect-all=encodings.idna',
+            '--collect-all=encodings.utf_8',
+            '--collect-all=encodings.latin_1',
         ])
         
         # 尝试添加证书文件
@@ -205,6 +213,16 @@ def build_exe():
             ])
         except ImportError:
             safe_print("certifi not available, skipping certificate file inclusion")
+        
+        # 添加Python运行时路径以确保所有基础依赖都被包含
+        python_stdlib_path = os.path.dirname(os.__file__)
+        cmd.append(f'--include-path={python_stdlib_path}')
+        
+        # 添加额外的运行时选项以确保所有依赖被正确处理
+        cmd.extend([
+            '--hidden-import=ssl',  # 确保SSL模块正确加载
+            '--hidden-import=_hashlib',  # 确保哈希模块可用
+        ])
     
     try:
         result = subprocess.run(cmd, check=True, capture_output=True, text=True)
