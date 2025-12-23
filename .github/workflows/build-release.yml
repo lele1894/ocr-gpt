@@ -32,7 +32,7 @@ jobs:
         python build.py
 
     - name: Upload artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: OCR-GPT-${{ matrix.os }}
         path: |
@@ -48,7 +48,7 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Download artifacts
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
 
     - name: Create Release
       uses: softprops/action-gh-release@v1
