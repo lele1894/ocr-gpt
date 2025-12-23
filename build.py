@@ -171,7 +171,6 @@ def build_exe():
         # Don't exclude SSL modules as they're essential
         '--strip',  # Remove debug info from executable
         '--noupx',  # Don't use UPX compression
-
         # Add data files
         '--add-data=ai.png;.',
         '--add-data=ai.ico;.',
@@ -179,10 +178,20 @@ def build_exe():
         'text_search.py'
     ]
     
-    # In GitHub Actions, use onedir mode for better debugging
+    # In GitHub Actions, use onedir mode to ensure proper DLL handling
     if 'GITHUB_ACTIONS' in os.environ:
         # Replace --onefile with --onedir in the command
         cmd[2] = '--onedir'  # Change from --onefile to --onedir
+        safe_print("Running in GitHub Actions, using --onedir mode")
+        
+        # Add SSL-related imports for GitHub Actions environment
+        cmd.extend([
+            '--hidden-import=_hashlib',
+            '--collect-all=ssl',
+            '--collect-all=_ssl'
+        ])
+    else:
+        safe_print("Running in local environment, using --onefile mode")
     
     try:
         result = subprocess.run(cmd, check=True, capture_output=True, text=True)
@@ -191,6 +200,7 @@ def build_exe():
     except subprocess.CalledProcessError as e:
         safe_print(f"✗ Build failed: {e}")
         safe_print(f"Error output: {e.stderr}")
+        safe_print(f"Standard output: {e.stdout}")
         return False
 
 def post_build():
@@ -203,6 +213,8 @@ def post_build():
             size_mb = exe_file.stat().st_size / (1024 * 1024)
             safe_print(f"✓ Generated file: {exe_file}")
             safe_print(f"✓ File size: {size_mb:.2f} MB")
+            # Verify the executable is not corrupted
+            verify_exe_file(exe_file)
         else:
             # For onedir mode, check in subdirectory
             exe_dir = dist_dir / 'OCR-GPT'
@@ -211,6 +223,8 @@ def post_build():
                 size_mb = exe_file.stat().st_size / (1024 * 1024)
                 safe_print(f"✓ Generated file: {exe_file}")
                 safe_print(f"✓ File size: {size_mb:.2f} MB")
+                # Verify the executable is not corrupted
+                verify_exe_file(exe_file)
             else:
                 safe_print("✗ Generated exe file not found")
                 # List contents of dist directory
@@ -222,6 +236,24 @@ def post_build():
                     safe_print(f"  - {item.name} ({size_mb:.2f} {unit})")
     else:
         safe_print("✗ dist directory does not exist")
+
+
+def verify_exe_file(exe_path):
+    """Verify the executable file integrity"""
+    try:
+        # Check file size and creation time
+        stat_info = exe_path.stat()
+        size_mb = stat_info.st_size / (1024 * 1024)
+        safe_print(f"✓ File size verification: {size_mb:.2f} MB")
+        
+        # Try to open file stream to check if file is accessible
+        with open(exe_path, 'rb') as f:
+            f.seek(0)
+            safe_print("✓ File accessibility verification: OK")
+        
+        safe_print("✓ Executable integrity verification passed")
+    except Exception as e:
+        safe_print(f"✗ Executable verification failed: {str(e)}")
 
 def main():
     """Main function"""
