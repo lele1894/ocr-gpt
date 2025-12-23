@@ -40,6 +40,7 @@ class TextRecognizer:
         # GPT配置
         self.GPT_API_URL = config['gpt']['api_url']
         self.GPT_API_KEY = config['gpt']['api_key']
+        self.GPT_MODEL = config['gpt']['model']
         
         # 创建主窗口
         self.create_main_window()
@@ -238,6 +239,11 @@ class TextRecognizer:
             gpt_key.pack(fill="x", padx=10, pady=(0,5))
             gpt_key.insert(0, self.GPT_API_KEY)
             
+            tk.Label(gpt_frame, text="模型名称:", font=('Arial', 9)).pack(anchor="w", padx=10, pady=(5,0))
+            gpt_model = tk.Entry(gpt_frame, font=('Arial', 9))
+            gpt_model.pack(fill="x", padx=10, pady=(0,5))
+            gpt_model.insert(0, self.GPT_MODEL)
+            
             def save_settings():
                 try:
                     # 保存设置前先验证 API 是否可用
@@ -245,6 +251,7 @@ class TextRecognizer:
                     new_secret_key = ocr_secret.get()
                     new_gpt_url = gpt_url.get()
                     new_gpt_key = gpt_key.get()
+                    new_gpt_model = gpt_model.get()
                     
                     # 获取当前窗口的置顶状态
                     current_topmost = self.main_window.attributes('-topmost') if self.main_window else False
@@ -257,7 +264,8 @@ class TextRecognizer:
                         },
                         'gpt': {
                             'api_url': new_gpt_url,
-                            'api_key': new_gpt_key
+                            'api_key': new_gpt_key,
+                            'model': new_gpt_model
                         },
                         'window': {
                             'topmost': current_topmost
@@ -271,6 +279,7 @@ class TextRecognizer:
                         self.SECRET_KEY = new_secret_key
                         self.GPT_API_URL = new_gpt_url
                         self.GPT_API_KEY = new_gpt_key
+                        self.GPT_MODEL = new_gpt_model
                         
                         # 如果有百度 API，尝试获取 token
                         if new_api_key and new_secret_key:
@@ -375,8 +384,21 @@ class TextRecognizer:
         """在新线程中处理API请求"""
         try:
             current_text = self.text_input.get("1.0", "end").strip()
+            
+            # 检查API密钥是否为空
+            if not self.GPT_API_KEY or self.GPT_API_KEY.strip() == "":
+                if self.main_window:
+                    self.main_window.after(0, self.show_message, "GPT API密钥未配置，请先在设置中输入API密钥")
+                return
+            
+            # 检查输入文本是否为空
+            if not current_text:
+                if self.main_window:
+                    self.main_window.after(0, self.show_message, "请输入要提问的问题")
+                return
+            
             data = {
-                "model": "gpt-3.5-turbo",
+                "model": self.GPT_MODEL,
                 "messages": [
                     {
                         "role": "system",
@@ -401,18 +423,41 @@ class TextRecognizer:
             )
             
             if response.status_code == 200:
-                result = response.json()
-                if 'choices' in result and len(result['choices']) > 0:
-                    answer = result['choices'][0]['message']['content']
-                    if answer:
-                        # 使用 after 在主线程中更新 UI
+                try:
+                    result = response.json()
+                    if 'choices' in result and len(result['choices']) > 0:
+                        answer = result['choices'][0]['message']['content']
+                        if answer:
+                            # 使用 after 在主线程中更新 UI
+                            if self.main_window:
+                                self.main_window.after(0, self._update_answer, answer)
+                            return
+                        else:
+                            if self.main_window:
+                                self.main_window.after(0, self.show_message, f"API返回内容为空: {response.text}")
+                    else:
                         if self.main_window:
-                            self.main_window.after(0, self._update_answer, answer)
-                        return
+                            self.main_window.after(0, self.show_message, f"API响应格式错误，缺少choices字段: {response.text}")
+                except json.JSONDecodeError as json_err:
+                    if self.main_window:
+                        self.main_window.after(0, self.show_message, f"响应JSON解析错误: {str(json_err)}\n响应内容: {response.text[:200]}...")
+            else:
+                # 尝试解析错误响应
+                try:
+                    error_result = response.json()
+                    error_msg = error_result.get('error', {}).get('message', str(error_result))
+                    if self.main_window:
+                        self.main_window.after(0, self.show_message, f"API请求失败 (状态码: {response.status_code}): {error_msg}")
+                except json.JSONDecodeError:
+                    if self.main_window:
+                        self.main_window.after(0, self.show_message, f"API请求失败 (状态码: {response.status_code}): {response.text[:200]}...")
             
+        except requests.exceptions.Timeout:
             if self.main_window:
-                self.main_window.after(0, self.show_message, "获取回答失败")
-            
+                self.main_window.after(0, self.show_message, "请求超时，请检查网络连接或API地址是否正确")
+        except requests.exceptions.ConnectionError:
+            if self.main_window:
+                self.main_window.after(0, self.show_message, "网络连接错误，请检查网络连接和API地址")
         except Exception as e:
             if self.main_window:
                 self.main_window.after(0, self.show_message, f"请求错误: {str(e)}")

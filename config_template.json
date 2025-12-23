@@ -1,0 +1,14 @@
+{
+    "baidu_ocr": {
+        "api_key": "",
+        "secret_key": ""
+    },
+    "gpt": {
+        "api_url": "https://free.v36.cm/v1/chat/completions",
+        "api_key": "",
+        "model": "gpt-4o-mini"
+    },
+    "window": {
+        "topmost": true
+    }
+}

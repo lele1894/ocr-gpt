@@ -21,7 +21,8 @@ class ConfigManager:
             },
             'gpt': {
                 'api_url': 'https://free.v36.cm/v1/chat/completions',
-                'api_key': ''
+                'api_key': '',
+                'model': 'gpt-4o-mini'
             },
             'window': {
                 'topmost': True  # 默认置顶

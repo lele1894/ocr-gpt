@@ -122,6 +122,10 @@ def build_exe():
         '--exclude-module=scipy',
         '--exclude-module=IPython',
         '--exclude-module=jupyter',
+        '--exclude-module=sklearn',
+        '--exclude-module=seaborn',
+        '--exclude-module=plotly',
+        '--exclude-module=bokeh',
         # Add data files
         '--add-data=ai.png;.',
         '--add-data=ai.ico;.',
