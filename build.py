@@ -9,6 +9,7 @@ import os
 import sys
 import shutil
 import subprocess
+import glob
 from pathlib import Path
 
 # Set environment variable for GitHub Actions
@@ -214,15 +215,25 @@ def build_exe():
         except ImportError:
             safe_print("certifi not available, skipping certificate file inclusion")
         
-        # 添加Python运行时路径以确保所有基础依赖都被包含
-        python_stdlib_path = os.path.dirname(os.__file__)
-        cmd.append(f'--include-path={python_stdlib_path}')
-        
         # 添加额外的运行时选项以确保所有依赖被正确处理
         cmd.extend([
             '--hidden-import=ssl',  # 确保SSL模块正确加载
             '--hidden-import=_hashlib',  # 确保哈希模块可用
         ])
+        
+        # 为Windows环境添加SSL DLL路径
+        if os.name == 'nt':  # Windows
+            python_path = os.path.dirname(sys.executable)
+            ssl_dll_path = os.path.join(python_path, 'DLLs')
+            if os.path.exists(ssl_dll_path):
+                # 添加SSL相关的DLL文件
+                ssl_files = glob.glob(os.path.join(ssl_dll_path, "_ssl*.pyd"))
+                for ssl_file in ssl_files:
+                    cmd.append(f'--add-binary={ssl_file};.')
+                        
+                crypto_files = glob.glob(os.path.join(ssl_dll_path, "libssl*.dll")) + glob.glob(os.path.join(ssl_dll_path, "libcrypto*.dll"))
+                for crypto_file in crypto_files:
+                    cmd.append(f'--add-binary={crypto_file};.')
     
     try:
         result = subprocess.run(cmd, check=True, capture_output=True, text=True)
