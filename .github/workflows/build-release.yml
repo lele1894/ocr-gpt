@@ -97,19 +97,19 @@ jobs:
         python build.py
         
         # 验证构建结果
-        if (Test-Path "dist\OCR-GPT.exe") {
-          $size = (Get-Item "dist\OCR-GPT.exe").Length / 1MB
+        if (Test-Path "dist\OCR-GPT\OCR-GPT.exe") {
+          $size = (Get-Item "dist\OCR-GPT\OCR-GPT.exe").Length / 1MB
           Write-Output "✓ 构建成功! OCR-GPT.exe ($([math]::Round($size, 2)) MB)"
           
           # 显示构建文件的详细信息
-          $fileInfo = Get-Item "dist\OCR-GPT.exe"
+          $fileInfo = Get-Item "dist\OCR-GPT\OCR-GPT.exe"
           Write-Output "  创建时间: $($fileInfo.CreationTime)"
           Write-Output "  文件大小: $([math]::Round($fileInfo.Length / 1MB, 2)) MB"
           Write-Output "  文件版本: $($fileInfo.VersionInfo.FileVersion)"
           
           # 检查文件是否可执行（基本检查）
           try {
-            $fileStream = [System.IO.File]::OpenRead("dist\OCR-GPT.exe")
+            $fileStream = [System.IO.File]::OpenRead("dist\OCR-GPT\OCR-GPT.exe")
             $fileStream.Close()
             Write-Output "✓ 文件可访问，无锁定问题"
           } catch {
@@ -117,6 +117,8 @@ jobs:
           }
         } else {
           Write-Error "✗ 构建失败，未找到 OCR-GPT.exe"
+          Write-Output "检查 dist 目录内容:"
+          Get-ChildItem -Path "dist" -Recurse | ForEach-Object { Write-Output "  $($_.FullName)" }
           exit 1
         }
       shell: pwsh
@@ -127,7 +129,7 @@ jobs:
         New-Item -ItemType Directory -Force -Path "release"
         
         # 复制主程序
-        Copy-Item "dist\OCR-GPT.exe" "release\"
+        Copy-Item "dist\OCR-GPT\OCR-GPT.exe" "release\"
         
         # 验证程序文件完整性
         $exePath = "release\OCR-GPT.exe"
