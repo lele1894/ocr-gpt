@@ -9,7 +9,6 @@ import os
 import sys
 import shutil
 import subprocess
-import glob
 from pathlib import Path
 
 # Set environment variable for GitHub Actions
@@ -127,21 +126,20 @@ def build_exe():
     """Build exe file"""
     safe_print("Starting build process...")
     
-    # PyInstaller command arguments
+    # PyInstaller command arguments - using standard approach
     cmd = [
         'pyinstaller',
-        '--onedir',                    # Package into directory (includes Python runtime)
+        '--onefile',                    # Package into single file
         '--windowed',                   # No console window
         '--name=OCR-GPT',              # Output filename
         '--clean',                      # Clean temp files
         '--noconfirm',                 # No confirmation for overwrite
         '--icon=ai.ico',               # Set icon
         '--version-file=version_info.txt',  # Version info
-        # Hidden imports
+        # Hidden imports for required modules
         '--hidden-import=keyboard',
         '--hidden-import=pyautogui', 
         '--hidden-import=requests',
-        '--hidden-import=requests.packages.urllib3',
         '--hidden-import=urllib3',
         '--hidden-import=urllib3.util',
         '--hidden-import=urllib3.connection',
@@ -154,14 +152,12 @@ def build_exe():
         '--hidden-import=encodings.utf_8',
         '--hidden-import=encodings.latin_1',
         '--hidden-import=codecs',
-        '--hidden-import=locale',
         '--hidden-import=PIL',
         '--hidden-import=tkinter',
         '--hidden-import=tkinter.ttk',
         '--hidden-import=tkinter.scrolledtext',
         '--hidden-import=tkinter.messagebox',
         # Exclude unnecessary modules to reduce size
-        # 保留基础库，只排除大型库
         '--exclude-module=matplotlib',
         '--exclude-module=numpy',
         '--exclude-module=pandas',
@@ -172,103 +168,21 @@ def build_exe():
         '--exclude-module=seaborn',
         '--exclude-module=plotly',
         '--exclude-module=bokeh',
-        # 不排除SSL相关模块
-        # '--exclude-module=ssl',
-        # '--exclude-module=sqlite3',
-        # '--exclude-module=urllib3.contrib.pyopenssl',
-        '--strip',  # 从可执行文件中移除调试信息
-        '--noupx',  # 不使用UPX压缩（如果可用）
-        '--uac-admin',  # 以管理员权限运行（如果需要）
+        # Don't exclude SSL modules as they're essential
+        '--strip',  # Remove debug info from executable
+        '--noupx',  # Don't use UPX compression
 
         # Add data files
         '--add-data=ai.png;.',
         '--add-data=ai.ico;.',
-        '--add-data=config_manager.py;.',
-        '--add-data=requirements.txt;.',  # 添加requirements文件
-        
-        # 包含更多Python标准库组件
-        '--collect-submodules=tkinter',
-        '--collect-submodules=PIL',
-        '--collect-submodules=requests',
-        '--collect-submodules=urllib3',
-        '--collect-submodules=encodings',
-        '--collect-submodules=ssl',
-        '--collect-submodules=hashlib',
-        '--collect-submodules=certifi',
-        '--collect-submodules=charset_normalizer',
-        '--collect-submodules=idna',
-        '--collect-submodules=pyautogui',
-        '--collect-submodules=keyboard',
         # Main program file
         'text_search.py'
     ]
     
-    # 在GitHub Actions环境中添加特定参数以确保SSL模块正确包含
+    # In GitHub Actions, use onedir mode for better debugging
     if 'GITHUB_ACTIONS' in os.environ:
-        cmd.extend([
-            '--collect-all=ssl',
-            '--collect-all=_ssl',
-            '--collect-all=hashlib',
-            '--collect-all=encodings',
-            '--collect-all=codecs',
-            '--collect-all=certifi',
-            '--collect-all=urllib3',
-            '--collect-all=requests',
-            '--collect-all=charset_normalizer',
-            '--collect-all=idna',
-            '--collect-all=urllib3.contrib.pyopenssl',
-            '--collect-all=urllib3.util.ssl_',
-            '--collect-all=encodings.hz',
-            '--collect-all=encodings.idna',
-            '--collect-all=encodings.utf_8',
-            '--collect-all=encodings.latin_1',
-        ])
-        
-        # 尝试添加证书文件
-        try:
-            import certifi
-            cmd.extend([
-                f'--add-data={certifi.where()};.',
-            ])
-        except ImportError:
-            safe_print("certifi not available, skipping certificate file inclusion")
-        
-        # 添加额外的运行时选项以确保所有依赖被正确处理
-        cmd.extend([
-            '--hidden-import=ssl',  # 确保SSL模块正确加载
-            '--hidden-import=_hashlib',  # 确保哈希模块可用
-            '--hidden-import=ssl.match_hostname',  # 确保SSL主机名验证可用
-            '--hidden-import=urllib3.contrib.pyopenssl',
-            '--hidden-import=urllib3.util.ssl_',
-            '--hidden-import=urllib3.util.retry',
-            '--hidden-import=urllib3.util.timeout',
-            '--hidden-import=urllib3.util.request',
-            '--hidden-import=urllib3.util.connection',
-            '--hidden-import=urllib3.packages.ssl_match_hostname',
-        ])
-        
-        # 添加更多Python运行时依赖
-        cmd.extend([
-            '--collect-data=requests',
-            '--collect-data=urllib3',
-            '--collect-data=certifi',
-            '--collect-data=charset_normalizer',
-            '--collect-data=idna',
-        ])
-        
-        # 为Windows环境添加SSL DLL路径
-        if os.name == 'nt':  # Windows
-            python_path = os.path.dirname(sys.executable)
-            ssl_dll_path = os.path.join(python_path, 'DLLs')
-            if os.path.exists(ssl_dll_path):
-                # 添加SSL相关的DLL文件
-                ssl_files = glob.glob(os.path.join(ssl_dll_path, "_ssl*.pyd"))
-                for ssl_file in ssl_files:
-                    cmd.append(f'--add-binary={ssl_file};.')
-                        
-                crypto_files = glob.glob(os.path.join(ssl_dll_path, "libssl*.dll")) + glob.glob(os.path.join(ssl_dll_path, "libcrypto*.dll"))
-                for crypto_file in crypto_files:
-                    cmd.append(f'--add-binary={crypto_file};.')
+        # Replace --onefile with --onedir in the command
+        cmd[2] = '--onedir'  # Change from --onefile to --onedir
     
     try:
         result = subprocess.run(cmd, check=True, capture_output=True, text=True)
@@ -283,62 +197,29 @@ def post_build():
     """打包后处理"""
     dist_dir = Path('dist')
     if dist_dir.exists():
-        # 对于--onedir模式，EXE文件在OCR-GPT子目录中
-        exe_dir = dist_dir / 'OCR-GPT'
-        exe_file = exe_dir / 'OCR-GPT.exe'
-        
+        # Check for both possible outputs (onefile vs onedir)
+        exe_file = dist_dir / 'OCR-GPT.exe'
         if exe_file.exists():
             size_mb = exe_file.stat().st_size / (1024 * 1024)
             safe_print(f"✓ Generated file: {exe_file}")
             safe_print(f"✓ File size: {size_mb:.2f} MB")
-            
-            # 创建使用说明
-            readme_content = """# OCR-GPT 使用说明
-
-## 功能介绍
-OCR-GPT 是一个基于 GPT 的文本助手，提供截图 OCR 和智能问答功能。
-
-## 主要功能
-- 截图识别文本（快捷键 Alt+1）
-- GPT 智能问答
-- 文本编辑和自定义提问
-- 窗口置顶设置
-- 自定义 API 配置
-
-## 使用方法
-1. 双击运行 OCR-GPT.exe
-2. 首次使用需要在"设置"中配置 API 密钥
-3. 按 Alt+1 进行截图识别
-4. 在文本框中输入问题，点击"提问"或按回车键
-
-## API 配置
-### 百度 OCR（可选）
-- 访问：https://ai.baidu.com
-- 获取 API Key 和 Secret Key
-
-### GPT API（必需）
-- 推荐：https://free.v36.cm
-- 获取 API Key
-
-## 注意事项
-- 首次运行可能需要安装字体
-- 杀毒软件可能误报，请添加信任
-- 需要网络连接以使用 API 服务
-
-## 技术支持
-如有问题请访问项目主页或提交 Issue。
-"""
-            
-            readme_file = exe_dir / '使用说明.md'
-            with open(readme_file, 'w', encoding='utf-8') as f:
-                f.write(readme_content)
-            safe_print(f"✓ Usage instructions created: {readme_file}")
         else:
-            safe_print("✗ Generated exe file not found")
-            # 检查dist目录下的所有文件和子目录
-            safe_print("Checking dist directory contents:")
-            for item in dist_dir.iterdir():
-                safe_print(f"  - {item.name} ({'dir' if item.is_dir() else 'file'})")
+            # For onedir mode, check in subdirectory
+            exe_dir = dist_dir / 'OCR-GPT'
+            exe_file = exe_dir / 'OCR-GPT.exe'
+            if exe_file.exists():
+                size_mb = exe_file.stat().st_size / (1024 * 1024)
+                safe_print(f"✓ Generated file: {exe_file}")
+                safe_print(f"✓ File size: {size_mb:.2f} MB")
+            else:
+                safe_print("✗ Generated exe file not found")
+                # List contents of dist directory
+                safe_print("Contents of dist directory:")
+                for item in dist_dir.iterdir():
+                    size = item.stat().st_size
+                    size_mb = size / (1024 * 1024) if size > 1024 * 1024 else size / 1024
+                    unit = "MB" if size > 1024 * 1024 else "KB"
+                    safe_print(f"  - {item.name} ({size_mb:.2f} {unit})")
     else:
         safe_print("✗ dist directory does not exist")
 
