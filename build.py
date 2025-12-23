@@ -48,13 +48,43 @@ def check_dependencies():
     
     # Check other dependencies
     required_modules = ['requests', 'pyautogui', 'keyboard', 'PIL']
+    missing_modules = []
+    
     for module in required_modules:
         try:
-            __import__(module)
-            safe_print(f"✓ {module} installed")
+            if module == 'PIL':
+                import PIL
+                safe_print(f"✓ {module} installed")
+            elif module == 'requests':
+                import requests
+                safe_print(f"✓ {module} installed")
+            elif module == 'pyautogui':
+                import pyautogui
+                safe_print(f"✓ {module} installed")
+            elif module == 'keyboard':
+                import keyboard
+                safe_print(f"✓ {module} installed")
         except ImportError:
             safe_print(f"✗ {module} not installed")
-            return False
+            missing_modules.append(module)
+    
+    if missing_modules:
+        safe_print(f"Installing missing modules: {missing_modules}")
+        try:
+            subprocess.run([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"], check=True)
+            safe_print("Dependencies installed from requirements.txt")
+        except subprocess.CalledProcessError:
+            # If requirements.txt install fails, try installing individually
+            for module in missing_modules:
+                try:
+                    safe_print(f"Installing {module}...")
+                    pip_module = module.replace('PIL', 'Pillow')  # PIL is installed as Pillow
+                    subprocess.run([sys.executable, "-m", "pip", "install", pip_module], check=True)
+                    safe_print(f"✓ {module} installed successfully")
+                except subprocess.CalledProcessError:
+                    safe_print(f"✗ Failed to install {module}")
+                    return False
+    
     return True
 
 def create_version_file():
