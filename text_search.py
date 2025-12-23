@@ -72,7 +72,7 @@ class TextRecognizer:
     def create_main_window(self):
         """创建主窗口"""
         self.main_window = tk.Tk()
-        self.main_window.title("OCR-GPT 识别文本截取热键:Alt+1")
+        self.main_window.title("OCR-GPT 文本识别与AI问答")
         self.main_window.geometry("600x400")
         
         # 从配置中读取置顶状态
@@ -144,6 +144,10 @@ class TextRecognizer:
                                 command=lambda: self.answer_text.delete("1.0", "end"), **button_style)
         clear_button.pack(side="left", padx=5)
         
+        # 添加截图按钮
+        capture_button = tk.Button(self.left_buttons, text="截图-Alt+1", command=self.start_capture, **button_style)
+        capture_button.pack(side="left", padx=5)
+        
         settings_button = tk.Button(self.left_buttons, text="设置", command=self.show_settings, **button_style)
         settings_button.pack(side="left", padx=5)
         
@@ -201,7 +205,7 @@ class TextRecognizer:
             # 帮助文本
             help_text = scrolledtext.ScrolledText(settings, height=8, wrap=tk.WORD, font=('Arial', 9))
             help_text.pack(fill="x", padx=10, pady=5)
-            help_text.insert("1.0", """获取API密钥说明：(alt+1截图快捷键)
+            help_text.insert("1.0", """获取API密钥说明：
 
 1. 百度OCR配置：(不用截图识别文本,可以不用配置)
    • 访问百度AI开放平台：https://ai.baidu.com
@@ -212,7 +216,12 @@ class TextRecognizer:
 2. GPT配置：(去以下地址GitHub获取免费api)
    • 访问API服务：https://free.v36.cm
    • 注册账号获取API Key
-   • 默认API地址：https://free.v36.cm/v1/chat/completions""")
+   • 默认API地址：https://free.v36.cm/v1/chat/completions
+
+3. 使用方法：
+   • 点击"截图-Alt+1"按钮或按Alt+1快捷键进行截图OCR识别
+   • 在文本框中编辑识别结果或直接输入问题
+   • 点击"点击提问"按钮或按回车键获取AI回答""")
             help_text.configure(state="disabled")
             
             # OCR设置
