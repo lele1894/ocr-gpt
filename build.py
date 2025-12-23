@@ -248,7 +248,10 @@ def post_build():
     """打包后处理"""
     dist_dir = Path('dist')
     if dist_dir.exists():
-        exe_file = dist_dir / 'OCR-GPT.exe'
+        # 对于--onedir模式，EXE文件在OCR-GPT子目录中
+        exe_dir = dist_dir / 'OCR-GPT'
+        exe_file = exe_dir / 'OCR-GPT.exe'
+        
         if exe_file.exists():
             size_mb = exe_file.stat().st_size / (1024 * 1024)
             safe_print(f"✓ Generated file: {exe_file}")
@@ -291,12 +294,16 @@ OCR-GPT 是一个基于 GPT 的文本助手，提供截图 OCR 和智能问答�
 如有问题请访问项目主页或提交 Issue。
 """
             
-            readme_file = dist_dir / '使用说明.md'
+            readme_file = exe_dir / '使用说明.md'
             with open(readme_file, 'w', encoding='utf-8') as f:
                 f.write(readme_content)
             safe_print(f"✓ Usage instructions created: {readme_file}")
         else:
             safe_print("✗ Generated exe file not found")
+            # 检查dist目录下的所有文件和子目录
+            safe_print("Checking dist directory contents:")
+            for item in dist_dir.iterdir():
+                safe_print(f"  - {item.name} ({'dir' if item.is_dir() else 'file'})")
     else:
         safe_print("✗ dist directory does not exist")
 
