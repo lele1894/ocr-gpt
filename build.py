@@ -178,20 +178,7 @@ def build_exe():
         'text_search.py'
     ]
     
-    # In GitHub Actions, use onedir mode to ensure proper DLL handling
-    if 'GITHUB_ACTIONS' in os.environ:
-        # Replace --onefile with --onedir in the command
-        cmd[2] = '--onedir'  # Change from --onefile to --onedir
-        safe_print("Running in GitHub Actions, using --onedir mode")
-        
-        # Add SSL-related imports for GitHub Actions environment
-        cmd.extend([
-            '--hidden-import=_hashlib',
-            '--collect-all=ssl',
-            '--collect-all=_ssl'
-        ])
-    else:
-        safe_print("Running in local environment, using --onefile mode")
+    safe_print("Using --onefile mode to create single executable")
     
     try:
         result = subprocess.run(cmd, check=True, capture_output=True, text=True)

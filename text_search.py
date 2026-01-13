@@ -14,12 +14,75 @@ import threading
 import urllib3
 import warnings
 from typing import Optional, Tuple
+import tempfile
+import atexit
 
 # 禁用 SSL 警告
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 class TextRecognizer:
+    def _check_another_instance(self):
+        """检查是否已有程序实例在运行"""
+        try:
+            if os.path.exists(self.lock_file):
+                with open(self.lock_file, 'r') as f:
+                    pid = f.read().strip()
+                if pid:
+                    try:
+                        # 尝试使用Windows命令检查进程是否存在
+                        import subprocess
+                        result = subprocess.run(['tasklist', '/FI', f'PID eq {pid}', '/FO', 'CSV'], 
+                                              capture_output=True, text=True)
+                        # 如果tasklist命令找到了对应的PID，则说明进程仍在运行
+                        return pid in result.stdout
+                    except:
+                        # 如果tasklist命令不可用，尝试使用psutil
+                        try:
+                            import psutil
+                            p = psutil.Process(int(pid))
+                            return p.is_running()
+                        except ImportError:
+                            # 如果没有psutil，简单地认为有实例在运行
+                            return True
+                        except (ValueError, AttributeError):
+                            # 进程不存在或无法访问
+                            # 同时删除无效的锁文件
+                            try:
+                                os.remove(self.lock_file)
+                            except:
+                                pass
+                            return False
+            return False
+        except Exception:
+            return False
+    
+    def _create_lock_file(self):
+        """创建锁文件"""
+        try:
+            with open(self.lock_file, 'w') as f:
+                f.write(str(os.getpid()))
+            # 注册退出时清理函数
+            atexit.register(self._cleanup_lock_file)
+        except Exception:
+            pass
+    
+    def _cleanup_lock_file(self):
+        """清理锁文件"""
+        try:
+            if os.path.exists(self.lock_file):
+                os.remove(self.lock_file)
+        except Exception:
+            pass
+    
     def __init__(self):
+        # 单实例检查
+        self.lock_file = os.path.join(tempfile.gettempdir(), 'ocr_gpt_lock.pid')
+        if self._check_another_instance():
+            messagebox.showwarning("警告", "程序已在运行中！")
+            sys.exit(1)
+        else:
+            self._create_lock_file()
+        
         self.capture_start: Optional[Tuple[int, int]] = None
         self.is_capturing = False
         self.capture_window = None
@@ -41,6 +104,7 @@ class TextRecognizer:
         self.GPT_API_URL = config['gpt']['api_url']
         self.GPT_API_KEY = config['gpt']['api_key']
         self.GPT_MODEL = config['gpt']['model']
+        self.SYSTEM_PROMPT = config['gpt']['system_prompt']
         
         # 初始化SSL环境
         self._init_ssl_environment()
@@ -220,7 +284,7 @@ class TextRecognizer:
             self.settings_window = tk.Toplevel(self.main_window)
             settings = self.settings_window
             settings.title("设置")
-            settings.geometry("400x500")
+            settings.geometry("500x600")
             settings.grab_set()
             settings.attributes('-topmost', True)
             settings.focus_force()
@@ -280,6 +344,11 @@ class TextRecognizer:
             gpt_model.pack(fill="x", padx=10, pady=(0,5))
             gpt_model.insert(0, self.GPT_MODEL)
             
+            tk.Label(gpt_frame, text="系统提示词:", font=('Arial', 9)).pack(anchor="w", padx=10, pady=(5,0))
+            system_prompt = tk.Entry(gpt_frame, font=('Arial', 9))
+            system_prompt.pack(fill="x", padx=10, pady=(0,5))
+            system_prompt.insert(0, self.SYSTEM_PROMPT)
+            
             def save_settings():
                 try:
                     # 保存设置前先验证 API 是否可用
@@ -288,6 +357,7 @@ class TextRecognizer:
                     new_gpt_url = gpt_url.get()
                     new_gpt_key = gpt_key.get()
                     new_gpt_model = gpt_model.get()
+                    new_system_prompt = system_prompt.get()
                     
                     # 获取当前窗口的置顶状态
                     current_topmost = self.main_window.attributes('-topmost') if self.main_window else False
@@ -301,7 +371,8 @@ class TextRecognizer:
                         'gpt': {
                             'api_url': new_gpt_url,
                             'api_key': new_gpt_key,
-                            'model': new_gpt_model
+                            'model': new_gpt_model,
+                            'system_prompt': new_system_prompt
                         },
                         'window': {
                             'topmost': current_topmost
@@ -316,6 +387,7 @@ class TextRecognizer:
                         self.GPT_API_URL = new_gpt_url
                         self.GPT_API_KEY = new_gpt_key
                         self.GPT_MODEL = new_gpt_model
+                        self.SYSTEM_PROMPT = new_system_prompt
                         
                         # 如果有百度 API，尝试获取 token
                         if new_api_key and new_secret_key:
@@ -337,12 +409,26 @@ class TextRecognizer:
             save_btn = tk.Button(settings, text="保存", command=save_settings, font=('Arial', 9), width=10)
             save_btn.pack(pady=10)
             
-            # 使窗口居中
+            # 使窗口居中显示在屏幕上
             settings.update_idletasks()
-            if self.main_window:
-                x = self.main_window.winfo_x() + (self.main_window.winfo_width() - settings.winfo_width()) // 2
-                y = self.main_window.winfo_y() + (self.main_window.winfo_height() - settings.winfo_height()) // 2
-                settings.geometry(f"+{x}+{y}")
+            
+            # 获取屏幕尺寸
+            screen_width = settings.winfo_screenwidth()
+            screen_height = settings.winfo_screenheight()
+            
+            # 获取窗口尺寸
+            window_width = settings.winfo_width()
+            window_height = settings.winfo_height()
+            
+            # 计算居中位置
+            x = (screen_width // 2) - (window_width // 2)
+            y = (screen_height // 2) - (window_height // 2)
+            
+            # 确保窗口不会超出屏幕边界
+            x = max(0, min(x, screen_width - window_width))
+            y = max(0, min(y, screen_height - window_height))
+            
+            settings.geometry(f"+{x}+{y}")
             
             # 处理窗口关闭
             def on_closing():
@@ -438,7 +524,7 @@ class TextRecognizer:
                 "messages": [
                     {
                         "role": "system",
-                        "content": "你是一个用中文回答问题的AI助手,如果只有英文输入就返回翻译信息."
+                        "content": self.SYSTEM_PROMPT
                     },
                     {
                         "role": "user",

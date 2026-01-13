@@ -22,7 +22,8 @@ class ConfigManager:
             'gpt': {
                 'api_url': 'https://free.v36.cm/v1/chat/completions',
                 'api_key': '',
-                'model': 'gpt-4o-mini'
+                'model': 'gpt-4o-mini',
+                'system_prompt': '你是一个用中文回答问题的AI助手,如果只有英文输入就返回翻译信息.'
             },
             'window': {
                 'topmost': True  # 默认置顶
